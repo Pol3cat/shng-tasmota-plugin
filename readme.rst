@@ -1,8 +1,3 @@
-.. index:: tasmota plugin
-.. index:: Plugins; tasmota
-.. index:: Plugins; mqtt
-.. index:: mqtt; tasmota plugin
-
 =======
 tasmota
 =======
@@ -44,7 +39,7 @@ Für die Nutzung eines Tasmota Devices müssen in dem entsprechenden Item die zw
 
 
 Vollständige Informationen zur Konfiguration und die vollständige Beschreibung der Item-Attribute sind
-unter :doc:`/plugins_doc/config/tasmota` zu finden.
+unter **plugin.yaml** zu finden.
 
 
 Web Interface des Plugins

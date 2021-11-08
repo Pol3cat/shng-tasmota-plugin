@@ -23,8 +23,6 @@
 #
 #########################################################################
 
-import json
-
 from datetime import datetime, timedelta
 
 from lib.module import Modules
@@ -118,7 +116,8 @@ class Tasmota(MqttPlugin):
         self.start_subscriptions()
 
         # Discover Tasmota Device
-        for topic in self.tasmota_devices:
+        key_list = list(self.tasmota_devices.keys())        # use copy of keys to iterate to prevent changing dict during iteration
+        for topic in key_list:
             # ask for status info of each known tasmota_topic, collected during parse_item
             self.logger.debug(f"run: publishing 'cmnd/{topic}/STATUS'")
             self.publish_tasmota_topic('cmnd', topic, 'STATUS', '0')
@@ -306,7 +305,7 @@ class Tasmota(MqttPlugin):
                     topic = tasmota_topic
                     try:
                         rf_key = int(item())
-                    except:
+                    except Exception as e:
                         self.logger.debug(f"update_item: rf_key_send received but with correct format; expected format integer or string 1-16")
                     else:
                         if rf_key in range(1, 17):
@@ -479,7 +478,7 @@ class Tasmota(MqttPlugin):
                 ## Handling of Zigbee Bridge Status messages ##
                 elif any(item.startswith("ZbStatus") for item in payload.keys()):
                     self.logger.info(f"Received Message decoded as Zigbee ZbStatus message.")
-                    self._handle_zbstatus(payload)
+                    self._handle_zbstatus(tasmota_topic, payload)
 
                 ## Handling of WIFI ##
                 if type(payload) is dict and 'Wifi' in payload:
@@ -500,6 +499,13 @@ class Tasmota(MqttPlugin):
             elif info_topic == 'SENSOR':
                 self.logger.info(f"Received Message contain sensor information.")
                 self._handle_sensor(tasmota_topic, info_topic, payload)
+
+                ## setting new online-timeout ##
+                self.tasmota_devices[tasmota_topic]['online_timeout'] = datetime.now() + timedelta(
+                    seconds=self.telemetry_period + 5)
+
+                ## setting online_item to True ##
+                self._set_item_value(tasmota_topic, 'item_online', True, info_topic)
 
             elif info_topic == 'STATUS':
                 self.logger.info(f"Received Message decoded as STATUS message.")
@@ -546,6 +552,13 @@ class Tasmota(MqttPlugin):
             elif info_topic == 'ZbReceived':
                 self.logger.info(f"Received Message decoded as ZbReceived message.")
                 self._handle_ZbReceived(payload)
+
+                ## setting new online-timeout ##
+                self.tasmota_devices[tasmota_topic]['online_timeout'] = datetime.now() + timedelta(
+                    seconds=self.telemetry_period + 5)
+
+                ## setting online_item to True ##
+                self._set_item_value(tasmota_topic, 'item_online', True, info_topic)
             else:
                 self.logger.info(f"Topic {info_topic} not handled in plugin.")
 
@@ -741,12 +754,6 @@ class Tasmota(MqttPlugin):
                     if 'DewPoint' in am2301:
                         self.tasmota_devices[device]['sensors']['AM2301']['dewpoint'] = am2301['DewPoint']
                         self._set_item_value(device, 'item_dewpoint', am2301['DewPoint'], function)
-
-        ## setting new online-timeout ##
-        self.tasmota_devices[device]['online_timeout'] = datetime.now()+timedelta(seconds=self.telemetry_period+5)
-
-        ## setting online_item to True ##
-        self._set_item_value(device, 'item_online', True, function)
 
     def _handle_lights(self, device, function, payload):
         """

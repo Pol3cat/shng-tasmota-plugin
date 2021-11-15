@@ -24,6 +24,7 @@
 #########################################################################
 
 from datetime import datetime, timedelta
+import logging
 
 from lib.module import Modules
 from lib.model.mqttplugin import *
@@ -653,6 +654,8 @@ class Tasmota(MqttPlugin):
         """
         # topic_type=tele, tasmota_topic=SONOFF_B1, info_topic=SENSOR, payload={"Time":"2021-04-28T09:42:50","DS18B20":{"Id":"00000938355C","Temperature":18.4},"TempUnit":"C"}
         # topic_type=tele, tasmota_topic=SONOFF_ZB1, info_topic=SENSOR, payload={'0x67FE': {'Device': '0x67FE', 'Humidity': 41.97, 'Endpoint': 1, 'LinkQuality': 55}}
+        # topic_type=tele, tasmota_topic=SONOFF_ZB1, info_topic=SENSOR, payload={"0x54EB":{"Device":"0x54EB","MultiInValue":2,"Click":"double","click":"double","Endpoint":1,"LinkQuality":173}}
+        # topic_type=tele, tasmota_topic=SONOFF_ZB1, info_topic=SENSOR, payload={"0x54EB":{"Device":"0x54EB","MultiInValue":255 ,"Click":"release","action":"release","Endpoint":1,"LinkQuality":175}}
 
         ## Handling of Zigbee Device Messages ##
         if self.tasmota_devices[device]['zigbee'] != {}:

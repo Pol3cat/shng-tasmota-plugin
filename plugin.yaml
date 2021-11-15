@@ -68,6 +68,8 @@ item_attributes:
             - white
             - ct
             - dimmer
+            - click
+            - action
             - rf_recv
             - rf_send
             - rf_key_send
@@ -88,7 +90,11 @@ item_attributes:
               - "Luftfeuchtigkeit in %rH bei Tasmota Devices mit HUM Sensor (AM2301) -> num, r/o"
               - "Taupunkt in °C bei Tasmota Devices mit HUM und TEMP Sensor (AM2301) -> num, r/o"
               - "Hue, Saturartion, Brightness (HSB) bei RGBW Tasmota Devices (H801) -> list, r/w"
-              - "Empfange RF data bei Tasmota Device mit RF Empfang (SONOFF Bridge) -> str, r/o"
+              - "Color Temperature in Kelvin bei RGBW Tasmota Devices (H801) -> num, r/w"
+              - "Color Temperature in Kelvin bei RGBW Tasmota Devices (H801) -> num, r/w"
+              - "Dimmwert in % Tasmota Devices -> num, r/w"
+              - "Art des Klicks (e.g. Aquara WXKG11LM -> str, r/o"
+              - "Action (e.g. Aquara WXKG11LM -> str, r/o"
               - "Zu sendende RF Daten bei Tasmota Device mit RF Sendemöglichkeit (SONOFF Bridge) -> dict, r/w"
               - "Zu sendende RF-Key Tasmota Device mit RF Sendemöglichkeit (SONOFF Bridge) -> num [1-16], r/w"
               - "Schaltet das Pairing an der ZigBee Bridge ein/aus -> bool, r/w"

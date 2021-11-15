@@ -229,8 +229,8 @@ class Tasmota(MqttPlugin):
             tasmota_topic = self.get_iattr_value(item.conf, 'tasmota_topic')
             tasmota_attr = self.get_iattr_value(item.conf, 'tasmota_attr')
             tasmota_relay = self.get_iattr_value(item.conf, 'tasmota_relay')
-            tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
-            tasmota_zb_attr = self.get_iattr_value(item.conf, 'tasmota_zb_attr')
+            # tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
+            # tasmota_zb_attr = self.get_iattr_value(item.conf, 'tasmota_zb_attr')
 
             if tasmota_attr in ['relay', 'hsb', 'white', 'ct', 'rf_send', 'rf_key_send', 'zb_permit_join']:
                 self.logger.info(f"update_item: {item.id()}, item has been changed in SmartHomeNG outside of this plugin in {caller} with value {item()}")
@@ -292,7 +292,7 @@ class Tasmota(MqttPlugin):
                     rf_send = item()
                     if type(rf_send) is dict:
                         rf_send_lower = eval(repr(rf_send).lower())
-                        #rf_send_lower = {k.lower(): v for k, v in rf_send.items()}
+                        # rf_send_lower = {k.lower(): v for k, v in rf_send.items()}
                         if 'rfsync' and 'rflow' and 'rfhigh' and 'rfcode' in rf_send_lower:
                             value = 'RfSync'+' '+str(rf_send_lower['rfsync'])+'; '+'RfLow'+' '+str(rf_send_lower['rflow'])+'; '+'RfHigh'+' '+str(rf_send_lower['rfhigh'])+'; '+'RfCode'+' '+str(rf_send_lower['rfcode'])
                         else:
@@ -306,7 +306,7 @@ class Tasmota(MqttPlugin):
                     topic = tasmota_topic
                     try:
                         rf_key = int(item())
-                    except Exception as e:
+                    except Exception:
                         self.logger.debug(f"update_item: rf_key_send received but with correct format; expected format integer or string 1-16")
                     else:
                         if rf_key in range(1, 17):
@@ -662,7 +662,7 @@ class Tasmota(MqttPlugin):
             self.logger.info(f"Received Message decoded as Zigbee Device message.")
             if type(payload) is dict:
                 for zigbee_device in payload:
-                    if not zigbee_device in self.tasmota_zigbee_devices:
+                    if zigbee_device not in self.tasmota_zigbee_devices:
                         self.logger.info(f"New Zigbee Device {zigbee_device} connected to Tasmota Zigbee Bridge discovered")
                         self.tasmota_zigbee_devices[zigbee_device] = {}
                     if not self.tasmota_zigbee_devices[zigbee_device].get('data'):

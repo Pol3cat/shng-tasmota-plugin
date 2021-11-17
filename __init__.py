@@ -166,7 +166,15 @@ class Tasmota(MqttPlugin):
             tasmota_attr = self.get_iattr_value(item.conf, 'tasmota_attr')
             tasmota_relay = self.get_iattr_value(item.conf, 'tasmota_relay')
             tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
-            tasmota_zb_attr = self.get_iattr_value(item.conf, 'tasmota_zb_attr')
+            if tasmota_zb_device is not None:
+                try:
+                    tasmota_zb_device = str(hex(int(tasmota_zb_device)))
+                except:
+                    pass
+                else:
+                    tasmota_zb_device = str(tasmota_zb_device).lower()
+            # self.logger.debug(f'tasmota_zb_device type is: {type(tasmota_zb_device)} and string {tasmota_zb_device}')
+            tasmota_zb_attr = str(self.get_iattr_value(item.conf, 'tasmota_zb_attr')).lower()
 
             if not tasmota_relay:
                 tasmota_relay = '1'
@@ -682,7 +690,7 @@ class Tasmota(MqttPlugin):
                     # Über Payload iterieren und entsprechende Items setzen
                     self.logger.debug(f"Item to be checked for update based in Zigbee Message and updated")
                     for element in payload[zigbee_device]:
-                        itemtype = f"item_{zigbee_device}.{element.lower()}"
+                        itemtype = f"item_{zigbee_device.lower()}.{element.lower()}"
                         value = payload[zigbee_device][element]
                         self._set_item_value(device, itemtype, value, function)
 
@@ -872,8 +880,11 @@ class Tasmota(MqttPlugin):
         :param zbstatus23:   ZbStatus2 or ZbStatus 3 part of MQTT message payload
         :return:
         """
-        # payload={'ZbStatus2':[{"Device":"0xD1B8","Name":"E1766_01","IEEEAddr":"0x588E81FFFE28DEC5","ModelId":"TRADFRIopen/closeremote","Manufacturer":"IKEA","Endpoints":[1],"Config":[]}]}
-        # payload={'ZbStatus3':[{'Device': '0x67FE', 'Name': 'snzb-02_01', 'IEEEAddr': '0x00124B00231E45B8', 'ModelId': 'TH01', 'Manufacturer': 'eWeLink', 'Endpoints': [1], 'Config': ['T01'], 'Temperature': 21.29, 'Humidity': 30.93, 'Reachable': True, 'BatteryPercentage': 100, 'LastSeen': 39, 'LastSeenEpoch': 1619350835, 'LinkQuality': 157}]}
+        # [{"Device":"0xD1B8","Name":"E1766_01","IEEEAddr":"0x588E81FFFE28DEC5","ModelId":"TRADFRIopen/closeremote","Manufacturer":"IKEA","Endpoints":[1],"Config":[]}]}
+        # [{'Device': '0x67FE', 'Name': 'snzb-02_01', 'IEEEAddr': '0x00124B00231E45B8', 'ModelId': 'TH01', 'Manufacturer': 'eWeLink', 'Endpoints': [1], 'Config': ['T01'], 'Temperature': 21.29, 'Humidity': 30.93, 'Reachable': True, 'BatteryPercentage': 100, 'LastSeen': 39, 'LastSeenEpoch': 1619350835, 'LinkQuality': 157}]}
+        # [{'Device': '0x9EFE', 'IEEEAddr': '0x00158D00067AA8BD', 'ModelId': 'lumi.vibration.aq1', 'Manufacturer': 'LUMI', 'Endpoints': [1, 2], 'Config': [], 'Reachable': True, 'BatteryPercentage': 100, 'LastSeen': 123, 'LastSeenEpoch': 1637134779, 'LinkQuality': 154}]
+        
+        self.logger.debug(f'zbstatus23: {zbstatus23}')
         if type(zbstatus23) is list:
             for element in zbstatus23:
                 device = element.get('Name')
@@ -882,6 +893,11 @@ class Tasmota(MqttPlugin):
                 if device in self.tasmota_zigbee_devices:
                     if not self.tasmota_zigbee_devices[device].get('meta'):
                         self.tasmota_zigbee_devices[device]['meta'] = {}
+                        
+                    # Korrektur des LastSeenEpoch von Timestamp zu datetime
+                    if 'LastSeenEpoch' in element:
+                        element.update({'LastSeenEpoch': datetime.fromtimestamp(element['LastSeenEpoch']/1000)})
+                    
                     self.tasmota_zigbee_devices[device]['meta'].update(element)
         else:
             self.logger.debug(f"ZbStatus2 or ZbStatus3 with {zbstatus23} received but not processed. since data was not of type list.")

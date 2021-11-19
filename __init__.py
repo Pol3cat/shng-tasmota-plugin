@@ -679,9 +679,18 @@ class Tasmota(MqttPlugin):
                         del payload[zigbee_device]['Device']
                     if 'Name' in payload[zigbee_device]:
                         del payload[zigbee_device]['Name']
+                    
                     self.tasmota_zigbee_devices[zigbee_device]['data'].update(payload[zigbee_device])
+                    
+                    # Prüfen und ggf. korrgieren, wenn in der Payload mehrmals der gleiche Key in unterschiedlicher Schreibweise (groß/klein) verwendet wird
+                    new_dict = {}
+                    for k in payload[zigbee_device]:
+                        keys = [each_string.lower() for each_string in list(new_dict.keys())]
+                        if k not in keys:
+                            new_dict[k] = payload[zigbee_device][k]
+                    payload[zigbee_device] = new_dict
 
-                    # löschen der Keys aus 'meta', wenn in 'data' vorhanden
+                    # Löschen der Keys aus 'meta', wenn in 'data' vorhanden
                     for key in payload[zigbee_device]:
                         if self.tasmota_zigbee_devices[zigbee_device].get('meta'):
                             if key in self.tasmota_zigbee_devices[zigbee_device]['meta']:

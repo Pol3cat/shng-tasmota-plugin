@@ -84,10 +84,10 @@ class Tasmota(MqttPlugin):
         self.tasmota_meta = {}                      # to hold meta information for web interface
         self.tasmota_zigbee_bridge = {}             # to hold tasmota zigbee bridge status
 
-        self.tasmota_zigbee_bridge_stetting = {'SetOption89': 'ON',      # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
-                                               'SetOption83': 'OFF',     # SetOption83   Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
+        self.tasmota_zigbee_bridge_stetting = {'SetOption89': 'OFF',     # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
+                                               'SetOption83': 'ON',      # SetOption83   Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
                                                'SetOption100': 'ON',     # SetOption100  Remove Zigbee ZbReceived value from {"ZbReceived":{xxx:yyy}} JSON message; 0 = disable (default), 1 = enable
-                                               'SetOption125': 'ON',     # SetOption125	ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
+                                               'SetOption125': 'ON',     # SetOption125	 ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
                                                'SetOption118': 'ON',     # SetOption118  Move ZbReceived from JSON message into the subtopic replacing "SENSOR" default; 0 = disable (default); 1 = enable
                                                'SetOption112': 'ON',     # SetOption112  0 = (default); 1 = use friendly name in Zigbee topic (use with ZbDeviceTopic)
                                                'SetOption119': 'OFF'}    # SetOption119  Remove device addr from JSON payload; 0 = disable (default); 1 = enable
@@ -587,8 +587,7 @@ class Tasmota(MqttPlugin):
                 self._handle_ZbReceived(payload)
 
                 ## setting new online-timeout ##
-                self.tasmota_devices[tasmota_topic]['online_timeout'] = datetime.now() + timedelta(
-                    seconds=self.telemetry_period + 5)
+                self.tasmota_devices[tasmota_topic]['online_timeout'] = datetime.now() + timedelta(seconds=self.telemetry_period + 5)
 
                 ## setting online_item to True ##
                 self._set_item_value(tasmota_topic, 'item_online', True, info_topic)
@@ -1011,7 +1010,7 @@ class Tasmota(MqttPlugin):
         """
         Extracts Zigbee Bridge Setting information out of payload and updates dict
 
-        :param device:          Device, the Wifi information shall be handled
+        :param device:          Device, the zbbridge setting information shall be handled
         :param payload:         MQTT message payload
         :return:
         """

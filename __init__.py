@@ -78,10 +78,19 @@ class Tasmota(MqttPlugin):
             self.full_topic += '/'
 
         # Initialization code goes here
-        self.tasmota_devices = {}            # to hold tasmota device information for web interface
-        self.tasmota_zigbee_devices = {}     # to hold tasmota zigbee device information for web interface
-        self.tasmota_items = []              # to hold item information for web interface
-        self.tasmota_meta = {}               # to hold meta information for web interface
+        self.tasmota_devices = {}                   # to hold tasmota device information for web interface
+        self.tasmota_zigbee_devices = {}            # to hold tasmota zigbee device information for web interface
+        self.tasmota_items = []                     # to hold item information for web interface
+        self.tasmota_meta = {}                      # to hold meta information for web interface
+        self.tasmota_zigbee_bridge = {}             # to hold tasmota zigbee bridge status
+
+        self.tasmota_zigbee_bridge_stetting = {'SetOption89': 'ON',      # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
+                                               'SetOption83': 'OFF',     # SetOption83   Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
+                                               'SetOption100': 'ON',     # SetOption100  Remove Zigbee ZbReceived value from {"ZbReceived":{xxx:yyy}} JSON message; 0 = disable (default), 1 = enable
+                                               'SetOption125': 'ON',     # SetOption125	ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
+                                               'SetOption118': 'ON',     # SetOption118  Move ZbReceived from JSON message into the subtopic replacing "SENSOR" default; 0 = disable (default); 1 = enable
+                                               'SetOption112': 'ON',     # SetOption112  0 = (default); 1 = use friendly name in Zigbee topic (use with ZbDeviceTopic)
+                                               'SetOption119': 'OFF'}    # SetOption119  Remove device addr from JSON payload; 0 = disable (default); 1 = enable
 
         # add subscription to get device announces
         self.add_tasmota_subscription('tele', '+', 'LWT', 'bool', bool_values=['Offline', 'Online'], callback=self.on_mqtt_announce)
@@ -131,6 +140,9 @@ class Tasmota(MqttPlugin):
             self.logger.debug(f"run: publishing 'cmnd/{topic}/teleperiod'")
             self.publish_tasmota_topic('cmnd', topic, 'teleperiod', self.telemetry_period)
 
+        # Update tasmota_meta auf Basis von tasmota_devices
+        self._update_tasmota_meta()
+
         self.scheduler_add('poll_device', self.poll_device, cycle=self._cycle)
         self.alive = True
         return
@@ -171,15 +183,13 @@ class Tasmota(MqttPlugin):
                     tasmota_zb_device = str(hex(int(tasmota_zb_device)))
                 except:
                     pass
-                else:
-                    tasmota_zb_device = str(tasmota_zb_device).lower()
-            # self.logger.debug(f'tasmota_zb_device type is: {type(tasmota_zb_device)} and string {tasmota_zb_device}')
+            tasmota_zb_device = str(tasmota_zb_device).lower()
             tasmota_zb_attr = str(self.get_iattr_value(item.conf, 'tasmota_zb_attr')).lower()
 
             if not tasmota_relay:
                 tasmota_relay = '1'
-            #self.logger.debug(f" - tasmota_topic={tasmota_topic}, tasmota_attr={tasmota_attr}, tasmota_relay={tasmota_relay}")
-            #self.logger.debug(f" - tasmota_topic={tasmota_topic}, item.conf={item.conf}")
+            # self.logger.debug(f" - tasmota_topic={tasmota_topic}, tasmota_attr={tasmota_attr}, tasmota_relay={tasmota_relay}")
+            # self.logger.debug(f" - tasmota_topic={tasmota_topic}, item.conf={item.conf}")
 
             if not self.tasmota_devices.get(tasmota_topic):
                 self.tasmota_devices[tasmota_topic] = {}
@@ -210,7 +220,7 @@ class Tasmota(MqttPlugin):
                 self.tasmota_devices[tasmota_topic]['zigbee']['active'] = True
 
             # append to list used for web interface
-            if not item in self.tasmota_items:
+            if item not in self.tasmota_items:
                 self.tasmota_items.append(item)
 
             return self.update_item
@@ -363,6 +373,14 @@ class Tasmota(MqttPlugin):
         changes on it's own, but has to be polled to get the actual status.
         It is called by the scheduler which is set within run() method.
         """
+        # check if Tasmota Zigbee Bridge needs to be configured
+        tasmota_zigbee_bridge_status = self.tasmota_zigbee_bridge.get('status')
+        if tasmota_zigbee_bridge_status == 'discovered':
+            self.logger.info(f'poll_device: Tasmota Zigbee Bridge discovered; Configuration will be adapted.')
+            zigbee_device = self.tasmota_zigbee_bridge.get('device')
+            if zigbee_device:
+                self._discover_zigbee_bridge(zigbee_device)
+
         self.logger.info("poll_device: Checking online status of connected devices")
         for tasmota_topic in self.tasmota_devices:
             if self.tasmota_devices[tasmota_topic].get('online') is True and self.tasmota_devices[tasmota_topic].get('online_timeout'):
@@ -376,6 +394,8 @@ class Tasmota(MqttPlugin):
                     self.tasmota_devices[tasmota_topic]['sensors'] = {}
                     self.tasmota_devices[tasmota_topic]['relais'] = {}
                     self.tasmota_devices[tasmota_topic]['zigbee'] = {}
+                else:
+                    self.logger.debug(f'poll_device: Checking online status of {tasmota_topic} successfull')
 
                 # ask for status info of reconnected tasmota_topic (which was not connected during plugin start)
                 if not self.tasmota_devices[tasmota_topic].get('mac'):
@@ -383,6 +403,9 @@ class Tasmota(MqttPlugin):
                     self.publish_topic(f"cmnd/{tasmota_topic}/STATUS", 0)
                     self.logger.debug(f"poll_device: reconnected device discovered, publishing 'cmnd/{tasmota_topic}/Module'")
                     self.publish_topic(f"cmnd/{tasmota_topic}/Module", "")
+
+        # update tasmota_meta auf Basis von tasmota_devices
+        self._update_tasmota_meta()
 
     def add_tasmota_subscription(self, prefix, topic, detail, payload_type, bool_values=None, item=None, callback=None):
         """
@@ -479,8 +502,13 @@ class Tasmota(MqttPlugin):
                     self.logger.info(f"Received Message decoded as Module type message.")
                     self._handle_module(tasmota_topic, payload)
 
+                ## Handling of Zigbee Bridge Setting messages ##
+                elif type(payload) is dict and any(item.startswith("SetOption") for item in payload.keys()):
+                    self.logger.info(f"Received Message decoded as Zigbee Bridge Setting message.")
+                    self._handle_zbbridge_setting(tasmota_topic, payload)
+
                 ## Handling of Zigbee Bridge Config messages ##
-                elif any(item.startswith("ZbConfig") for item in payload.keys()):
+                elif type(payload) is dict and any(item.startswith("ZbConfig") for item in payload.keys()):
                     self.logger.info(f"Received Message decoded as Zigbee Config message.")
                     self._handle_zbconfig(tasmota_topic, payload)
 
@@ -529,10 +557,6 @@ class Tasmota(MqttPlugin):
                 # topic_type=stat, tasmota_topic=SONOFF_ZB1, info_topic=STATUS2, payload={'StatusFWR': {'Version': '9.4.0(zbbridge)', 'BuildDateTime': '2021-04-23T10:07:24', 'Boot': 31, 'Core': '2_7_4_9', 'SDK': '2.2.2-dev(38a443e)', 'CpuFrequency': 160, 'Hardware': 'ESP8266EX', 'CR': '405/699'}}
                 self.logger.info(f"Received Message decoded as STATUS2 message.")
                 self.tasmota_devices[tasmota_topic]['fw_ver'] = payload['StatusFWR'].get('Version', '')
-                zigbee = self.tasmota_devices[tasmota_topic].get('fw_ver')
-                # Zigbee Bridge erkennen und Discovery starten
-                if zigbee and 'zbbridge' in zigbee:
-                    self._discover_zigbee_bridge(tasmota_topic)
 
             elif info_topic == 'STATUS5':
                 self.logger.info(f"Received Message decoded as STATUS5 message.")
@@ -570,9 +594,6 @@ class Tasmota(MqttPlugin):
                 self._set_item_value(tasmota_topic, 'item_online', True, info_topic)
             else:
                 self.logger.info(f"Topic {info_topic} not handled in plugin.")
-
-            # update tasmota_meta auf Basis von tasmota_devices
-            self._update_tasmota_meta()
 
     def on_mqtt_message(self, topic, payload, qos=None, retain=None):
         """
@@ -614,7 +635,7 @@ class Tasmota(MqttPlugin):
         """
         if tasmota_topic in self.tasmota_devices:
             if self.tasmota_devices[tasmota_topic].get('connected_items'):
-                item = self.tasmota_devices[tasmota_topic]['connected_items'].get(itemtype, None)
+                item = self.tasmota_devices[tasmota_topic]['connected_items'].get(itemtype)
                 topic = ''
                 src = ''
                 if info_topic != '':
@@ -679,9 +700,9 @@ class Tasmota(MqttPlugin):
                         del payload[zigbee_device]['Device']
                     if 'Name' in payload[zigbee_device]:
                         del payload[zigbee_device]['Name']
-                    
+
                     self.tasmota_zigbee_devices[zigbee_device]['data'].update(payload[zigbee_device])
-                    
+
                     # Prüfen und ggf. korrgieren, wenn in der Payload mehrmals der gleiche Key in unterschiedlicher Schreibweise (groß/klein) verwendet wird
                     new_dict = {}
                     for k in payload[zigbee_device]:
@@ -850,7 +871,7 @@ class Tasmota(MqttPlugin):
     def _handle_module(self, device, payload):
         """
         Extracts Module information out of payload and updates plugin dict
-        
+
         :param device:    Device, the Module information shall be handled
         :param payload:   MQTT message payload
         :return:
@@ -860,6 +881,12 @@ class Tasmota(MqttPlugin):
             template, module = list(module_list.items())[0]
             self.tasmota_devices[device]['module'] = module
             self.tasmota_devices[device]['tasmota_template'] = template
+
+            # Zigbee Bridge erkennen und Status setzen
+            if template == '75':
+                self.tasmota_zigbee_bridge['status'] = 'discovered'
+                self.tasmota_zigbee_bridge['device'] = device
+            self.logger.debug(f"_handle_module, ZigbeeBridge Status is: {self.tasmota_zigbee_bridge}")
 
     def _handle_zbstatus1(self, device, zbstatus1):
         """
@@ -892,7 +919,7 @@ class Tasmota(MqttPlugin):
         # [{"Device":"0xD1B8","Name":"E1766_01","IEEEAddr":"0x588E81FFFE28DEC5","ModelId":"TRADFRIopen/closeremote","Manufacturer":"IKEA","Endpoints":[1],"Config":[]}]}
         # [{'Device': '0x67FE', 'Name': 'snzb-02_01', 'IEEEAddr': '0x00124B00231E45B8', 'ModelId': 'TH01', 'Manufacturer': 'eWeLink', 'Endpoints': [1], 'Config': ['T01'], 'Temperature': 21.29, 'Humidity': 30.93, 'Reachable': True, 'BatteryPercentage': 100, 'LastSeen': 39, 'LastSeenEpoch': 1619350835, 'LinkQuality': 157}]}
         # [{'Device': '0x9EFE', 'IEEEAddr': '0x00158D00067AA8BD', 'ModelId': 'lumi.vibration.aq1', 'Manufacturer': 'LUMI', 'Endpoints': [1, 2], 'Config': [], 'Reachable': True, 'BatteryPercentage': 100, 'LastSeen': 123, 'LastSeenEpoch': 1637134779, 'LinkQuality': 154}]
-        
+
         self.logger.debug(f'zbstatus23: {zbstatus23}')
         if type(zbstatus23) is list:
             for element in zbstatus23:
@@ -902,11 +929,11 @@ class Tasmota(MqttPlugin):
                 if device in self.tasmota_zigbee_devices:
                     if not self.tasmota_zigbee_devices[device].get('meta'):
                         self.tasmota_zigbee_devices[device]['meta'] = {}
-                        
+
                     # Korrektur des LastSeenEpoch von Timestamp zu datetime
                     if 'LastSeenEpoch' in element:
                         element.update({'LastSeenEpoch': datetime.fromtimestamp(element['LastSeenEpoch']/1000)})
-                    
+
                     self.tasmota_zigbee_devices[device]['meta'].update(element)
         else:
             self.logger.debug(f"ZbStatus2 or ZbStatus3 with {zbstatus23} received but not processed. since data was not of type list.")
@@ -951,7 +978,7 @@ class Tasmota(MqttPlugin):
     def _handle_zbstatus(self, device, payload):
         """
         Extracts ZigBee Status information out of payload and updates plugin dict
-        
+
         :param device:    Device, the Zigbee Status information shall be handled
         :param payload:   MQTT message payload
         :return:
@@ -979,6 +1006,22 @@ class Tasmota(MqttPlugin):
         if wifi_signal:
             self.logger.info(f"Received Message decoded as Wifi message.")
             self.tasmota_devices[device]['wifi_signal'] = wifi_signal
+
+    def _handle_zbbridge_setting(self, device, payload):
+        """
+        Extracts Zigbee Bridge Setting information out of payload and updates dict
+
+        :param device:          Device, the Wifi information shall be handled
+        :param payload:         MQTT message payload
+        :return:
+        """
+        if not self.tasmota_zigbee_bridge.get('setting'):
+            self.tasmota_zigbee_bridge['setting'] = {}
+        self.tasmota_zigbee_bridge['setting'].update(payload)
+
+        if self.tasmota_zigbee_bridge['setting'] == self.tasmota_zigbee_bridge_stetting:
+            self.tasmota_zigbee_bridge['status'] = 'set'
+            self.logger.info(f'_handle_zbbridge_setting: Setting of Tasmota Zigbee Bridge successful.')
 
     def _update_tasmota_meta(self):
         """
@@ -1017,36 +1060,23 @@ class Tasmota(MqttPlugin):
         """
         Configures and discovers Zigbee Bridge and all connected zigbee devices
 
-        :param device:   Zigbee bridge to be discovered (equal to tasmota_topic)
-        :return:
+        :param device:      Zigbee bridge to be discovered (equal to tasmota_topic)
+        :return:            None
         """
-        self.logger.info("Zigbee Bridge discovered: Prepare Settings and polling informatiopn of all connected zigbee devices")
+        self.logger.info("Zigbee Bridge discovered: Prepare Settings and polling information of all connected zigbee devices")
 
         ###### Konfigruation der ZigBeeBridge ######
         self.logger.debug(f"Configuration of Tasmota Zigbee Bridge to get MQTT Messages in right format")
-        # Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
-        self.publish_tasmota_topic('cmnd', device, 'SetOption89', '0')
-        # Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
-        self.publish_tasmota_topic('cmnd', device, 'SetOption83', '1')
-        # Remove Zigbee ZbReceived value from {"ZbReceived":{xxx:yyy}} JSON message; 0 = disable (default), 1 = enable
-        self.publish_tasmota_topic('cmnd', device, 'SetOption100', '1')
-        # SetOption125	ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
-        self.publish_tasmota_topic('cmnd', device, 'SetOption125', '1')
-        # Move ZbReceived from JSON message into the subtopic replacing "SENSOR" default; 0 = disable (default); 1 = enable
-        self.publish_tasmota_topic('cmnd', device, 'SetOption118', '1')
-        # SetOption112  0 = (default); 1 = use friendly name in Zigbee topic (use with ZbDeviceTopic)
-        self.publish_tasmota_topic('cmnd', device, 'SetOption112', '1')
-        # SetOption119  Remove device addr from JSON payload; 0 = disable (default); 1 = enable
-        self.publish_tasmota_topic('cmnd', device, 'SetOption119', '0')
-        # SetOption118  Move ZbReceived from JSON message into the subtopic replacing "SENSOR" default; 0 = disable (default); 1 = enable
-        self.publish_tasmota_topic('cmnd', device, 'SetOption118', '1')
+        for setting in self.tasmota_zigbee_bridge_stetting:
+            self.publish_tasmota_topic('cmnd', device, setting, self.tasmota_zigbee_bridge_stetting[setting])
+            self.logger.debug(f"_discover_zigbee_bridge: publishing to 'cmnd/{device}/setting' with payload {self.tasmota_zigbee_bridge_stetting[setting]}")
 
         ###### Abfrage der ZigBee Konfiguration ######
         self.logger.info("_discover_zigbee_bridge: Request configuration of Zigbee bridge")
-        self.logger.debug(f"run: publishing 'cmnd/{device}/ZbConfig'")
+        self.logger.debug(f"_discover_zigbee_bridge: publishing 'cmnd/{device}/ZbConfig'")
         self.publish_tasmota_topic('cmnd', device, 'ZbConfig', '')
 
         ###### Discovery aller ZigBee Geräte im Netzwerk ######
         self.logger.info("_discover_zigbee_bridge: Discover all connected Zigbee devices")
-        self.logger.debug(f"run: publishing 'cmnd/{device}/ZbStatus1'")
+        self.logger.debug(f"_discover_zigbee_bridge: publishing 'cmnd/{device}/ZbStatus1'")
         self.publish_tasmota_topic('cmnd', device, 'ZbStatus1', '')

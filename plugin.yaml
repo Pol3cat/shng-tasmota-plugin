@@ -68,8 +68,6 @@ item_attributes:
             - white
             - ct
             - dimmer
-            - click
-            - action
             - rf_recv
             - rf_send
             - rf_key_send

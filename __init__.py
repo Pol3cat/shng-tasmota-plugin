@@ -179,11 +179,14 @@ class Tasmota(MqttPlugin):
             tasmota_relay = self.get_iattr_value(item.conf, 'tasmota_relay')
             tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
             if tasmota_zb_device is not None:
+                # check if zigbee device short name has been used without parentheses; if so this will be normally parsed to a number and therefore mismatch with defintion
                 try:
-                    tasmota_zb_device = str(hex(int(tasmota_zb_device)))
+                    tasmota_zb_device = int(tasmota_zb_device)
+                    self.logger.warning(f"Probably for item {item.id()} the device short name as been used for attribute 'tasmota_zb_device'. Trying to make that work but it will cause exceptions. To prevent this, the short name need to be defined as string by using parentheses")
+                    tasmota_zb_device = str(hex(tasmota_zb_device))
+                    tasmota_zb_device = tasmota_zb_device[0:2]+tasmota_zb_device[2:len(tasmota_zb_device)].upper()
                 except:
                     pass
-            tasmota_zb_device = str(tasmota_zb_device).lower()
             tasmota_zb_attr = str(self.get_iattr_value(item.conf, 'tasmota_zb_attr')).lower()
 
             if not tasmota_relay:
@@ -505,7 +508,7 @@ class Tasmota(MqttPlugin):
                 ## Handling of Zigbee Bridge Setting messages ##
                 elif type(payload) is dict and any(item.startswith("SetOption") for item in payload.keys()):
                     self.logger.info(f"Received Message decoded as Zigbee Bridge Setting message.")
-                    self._handle_zbbridge_setting(tasmota_topic, payload)
+                    self._handle_zbbridge_setting(payload)
 
                 ## Handling of Zigbee Bridge Config messages ##
                 elif type(payload) is dict and any(item.startswith("ZbConfig") for item in payload.keys()):
@@ -638,7 +641,7 @@ class Tasmota(MqttPlugin):
                 topic = ''
                 src = ''
                 if info_topic != '':
-                    topic = "  (from info_topic '" + info_topic + "'}"
+                    topic = f"from info_topic '{info_topic}'"
                     src = self.get_instance_name()
                     if src != '':
                         src += ':'
@@ -646,9 +649,9 @@ class Tasmota(MqttPlugin):
 
                 if item is not None:
                     item(value, self.get_shortname(), src)
-                    self.logger.info(f"{tasmota_topic}: Item '{item.id()}' set to value {value}{topic}")
+                    self.logger.info(f"{tasmota_topic}: Item '{item.id()}' via itemtype '{itemtype} set to value {value} provided by {src} '.")
                 else:
-                    self.logger.info(f"{tasmota_topic}: No item for '{itemtype}' defined to set to {value}{topic}")
+                    self.logger.info(f"{tasmota_topic}: No item for itemtype '{itemtype}' defined to set to {value} provided by {src}.")
 
     def _handle_ZbReceived(self, payload):
         """
@@ -702,7 +705,7 @@ class Tasmota(MqttPlugin):
 
                     self.tasmota_zigbee_devices[zigbee_device]['data'].update(payload[zigbee_device])
 
-                    # Prüfen und ggf. korrgieren, wenn in der Payload mehrmals der gleiche Key in unterschiedlicher Schreibweise (groß/klein) verwendet wird
+                    # Check and correct payload, if there is the same dict key used with different cases (upper and lower case)
                     new_dict = {}
                     for k in payload[zigbee_device]:
                         keys = [each_string.lower() for each_string in list(new_dict.keys())]
@@ -710,16 +713,16 @@ class Tasmota(MqttPlugin):
                             new_dict[k] = payload[zigbee_device][k]
                     payload[zigbee_device] = new_dict
 
-                    # Löschen der Keys aus 'meta', wenn in 'data' vorhanden
+                    # Delete keys from 'meta', if in 'data'
                     for key in payload[zigbee_device]:
                         if self.tasmota_zigbee_devices[zigbee_device].get('meta'):
                             if key in self.tasmota_zigbee_devices[zigbee_device]['meta']:
                                 self.tasmota_zigbee_devices[zigbee_device]['meta'].pop(key)
 
-                    # Über Payload iterieren und entsprechende Items setzen
+                    # Iterate over payload and set corresponding items
                     self.logger.debug(f"Item to be checked for update based in Zigbee Message and updated")
                     for element in payload[zigbee_device]:
-                        itemtype = f"item_{zigbee_device.lower()}.{element.lower()}"
+                        itemtype = f"item_{zigbee_device}.{element.lower()}"
                         value = payload[zigbee_device][element]
                         self._set_item_value(device, itemtype, value, function)
 
@@ -1006,11 +1009,10 @@ class Tasmota(MqttPlugin):
             self.logger.info(f"Received Message decoded as Wifi message.")
             self.tasmota_devices[device]['wifi_signal'] = wifi_signal
 
-    def _handle_zbbridge_setting(self, device, payload):
+    def _handle_zbbridge_setting(self, payload):
         """
         Extracts Zigbee Bridge Setting information out of payload and updates dict
 
-        :param device:          Device, the zbbridge setting information shall be handled
         :param payload:         MQTT message payload
         :return:
         """
@@ -1052,7 +1054,7 @@ class Tasmota(MqttPlugin):
         """
         self.logger.info("_poll_zigbee_devices: Polling informatiopn of all discovered Zigbee devices")
         for zigbee_device in self.tasmota_zigbee_devices:
-            self.logger.debug(f"run: publishing 'cmnd/{device}/ZbStatus3 {zigbee_device}'")
+            self.logger.debug(f"_poll_zigbee_devices: publishing 'cmnd/{device}/ZbStatus3 {zigbee_device}'")
             self.publish_tasmota_topic('cmnd', device, 'ZbStatus3', zigbee_device)
 
     def _discover_zigbee_bridge(self, device):
@@ -1064,18 +1066,18 @@ class Tasmota(MqttPlugin):
         """
         self.logger.info("Zigbee Bridge discovered: Prepare Settings and polling information of all connected zigbee devices")
 
-        ###### Konfigruation der ZigBeeBridge ######
+        ###### Configure ZigBeeBridge ######
         self.logger.debug(f"Configuration of Tasmota Zigbee Bridge to get MQTT Messages in right format")
         for setting in self.tasmota_zigbee_bridge_stetting:
             self.publish_tasmota_topic('cmnd', device, setting, self.tasmota_zigbee_bridge_stetting[setting])
             self.logger.debug(f"_discover_zigbee_bridge: publishing to 'cmnd/{device}/setting' with payload {self.tasmota_zigbee_bridge_stetting[setting]}")
 
-        ###### Abfrage der ZigBee Konfiguration ######
+        ###### Request ZigBee Konfiguration ######
         self.logger.info("_discover_zigbee_bridge: Request configuration of Zigbee bridge")
         self.logger.debug(f"_discover_zigbee_bridge: publishing 'cmnd/{device}/ZbConfig'")
         self.publish_tasmota_topic('cmnd', device, 'ZbConfig', '')
 
-        ###### Discovery aller ZigBee Geräte im Netzwerk ######
+        ###### Discovery all ZigBee Devices ######
         self.logger.info("_discover_zigbee_bridge: Discover all connected Zigbee devices")
         self.logger.debug(f"_discover_zigbee_bridge: publishing 'cmnd/{device}/ZbStatus1'")
         self.publish_tasmota_topic('cmnd', device, 'ZbStatus1', '')

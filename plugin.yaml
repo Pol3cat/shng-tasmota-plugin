@@ -91,8 +91,7 @@ item_attributes:
               - "Color Temperature in Kelvin bei RGBW Tasmota Devices (H801) -> num, r/w"
               - "Color Temperature in Kelvin bei RGBW Tasmota Devices (H801) -> num, r/w"
               - "Dimmwert in % Tasmota Devices -> num, r/w"
-              - "Art des Klicks (e.g. Aquara WXKG11LM -> str, r/o"
-              - "Action (e.g. Aquara WXKG11LM -> str, r/o"
+              - "Emfangene RF Daten bei Tasmota Device mit RF Sendemöglichkeit (SONOFF Bridge) -> dict, r/o"
               - "Zu sendende RF Daten bei Tasmota Device mit RF Sendemöglichkeit (SONOFF Bridge) -> dict, r/w"
               - "Zu sendende RF-Key Tasmota Device mit RF Sendemöglichkeit (SONOFF Bridge) -> num [1-16], r/w"
               - "Schaltet das Pairing an der ZigBee Bridge ein/aus -> bool, r/w"
@@ -112,14 +111,14 @@ item_attributes:
     tasmota_zb_device:
         type: str
         description:
-            de: "Friendly Name des Zigbee Devices"
-            en: ""
+            de: "Friendly Name oder Kurzname des Zigbee Devices. ACHTUNG: Wird der Kurzname verwendet und beginnt dieser mit 0x, muss die Schreibweise '0x9CB9' verwendet werden"
+            en: "Friendly Name oder Short Name of Zigbee Devices"
     
     tasmota_zb_attr: 
         type: str
         description:
             de: "Schlüssel der Json-Dict, der vom Zigbee-Device bereitgestellt wird; Key aus dem sub-dict 'data' des tasmota_zb_device"
-            en: ""
+            en: "Dict Key of provided data; can be seen in Plugin WebIF"
 
 item_structs: NONE
     # Definition of item-structure templates for this plugin (enter 'item_structs: NONE', if section should be empty)

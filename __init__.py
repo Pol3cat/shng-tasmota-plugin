@@ -519,7 +519,7 @@ class Tasmota(MqttPlugin):
         tpc += detail
         self.publish_topic(tpc, payload, item, qos, retain, bool_values)
 
-    def on_discovery(self, topic, payload):
+    def on_discovery(self, topic, payload, qos=None, retain=None):
         """
         Callback function to handle received discovery messages
 
@@ -527,6 +527,10 @@ class Tasmota(MqttPlugin):
         :type topic:        str
         :param payload:     MQTT message payload
         :type payload:      dict
+        :param qos:         qos for this message (optional)
+        :type qos:          int
+        :param retain:      retain flag for this message (optional)
+        :type retain:       bool
         """
 
         # device_id=2C3AE82EB8AE, type=config, payload={"ip":"192.168.2.25","dn":"SONOFF_B1","fn":["SONOFF_B1",null,null,null,null,null,null,null],"hn":"SONOFF-B1-6318","mac":"2C3AE82EB8AE","md":"Sonoff Basic","ty":0,"if":0,"ofln":"Offline","onln":"Online","state":["OFF","ON","TOGGLE","HOLD"],"sw":"11.0.0","t":"SONOFF_B1","ft":"%prefix%/%topic%/","tp":["cmnd","stat","tele"],"rl":[1,0,0,0,0,0,0,0],"swc":[-1,-1,-1,-1,-1,-1,-1,-1],"swn":[null,null,null,null,null,null,null,null],"btn":[0,0,0,0,0,0,0,0],"so":{"4":0,"11":0,"13":0,"17":1,"20":0,"30":0,"68":0,"73":0,"82":0,"114":0,"117":0},"lk":0,"lt_st":0,"sho":[0,0,0,0],"ver":1}
@@ -535,7 +539,6 @@ class Tasmota(MqttPlugin):
         # device_id=2CF432CC2FC5, type=sensors, payload={"sn":{"Time":"2022-02-23T11:02:48","ENERGY":{"TotalStartTime":"2019-12-23T17:02:03","Total":72.814,"Yesterday":0.000,"Today":0.000,"Power": 0,"ApparentPower": 0,"ReactivePower": 0,"Factor":0.00,"Voltage": 0,"Current":0.000}},"ver":1}
         # device_id=6001946F966E, type=config, payload={"ip":"192.168.2.31","dn":"SONOFF_RGBW1","fn":["SONOFF_RGBW",null,null,null,null,null,null,null],"hn":"SONOFF-RGBW1-5742","mac":"6001946F966E","md":"H801","ty":0,"if":0,"ofln":"Offline","onln":"Online","state":["OFF","ON","TOGGLE","HOLD"],"sw":"11.0.0","t":"SONOFF_RGBW1","ft":"%prefix%/%topic%/","tp":["cmnd","stat","tele"],"rl":[2,0,0,0,0,0,0,0],"swc":[-1,-1,-1,-1,-1,-1,-1,-1],"swn":[null,null,null,null,null,null,null,null],"btn":[0,0,0,0,0,0,0,0],"so":{"4":0,"11":0,"13":0,"17":0,"20":0,"30":0,"68":0,"73":0,"82":0,"114":0,"117":0},"lk":1,"lt_st":5,"sho":[0,0,0,0],"ver":1}
         # device_id=6001946F966E, type=sensors, payload={"sn":{"Time":"2022-02-23T11:00:43"},"ver":1}
-
         try:
             (tasmota, discovery, device_id, type) = topic.split('/')
             self.logger.info(f"on_discovery: device_id={device_id}, type={type}, payload={payload}")

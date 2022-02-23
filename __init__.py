@@ -24,6 +24,7 @@
 #########################################################################
 
 from datetime import datetime, timedelta
+import time
 
 from lib.module import Modules
 from lib.model.mqttplugin import *
@@ -57,35 +58,34 @@ class Tasmota(MqttPlugin):
         self.telemetry_period = self.get_parameter_value('telemetry_period')
         self._cycle = self.telemetry_period
 
+        # crate full_topic
         self.full_topic = self.get_parameter_value('full_topic').lower()
         if self.full_topic.find('%prefix%') == -1 or self.full_topic.find('%topic%') == -1:
             self.full_topic = '%prefix%/%topic%/'
         if self.full_topic[-1] != '/':
             self.full_topic += '/'
 
-        # Initialization code goes here
+        # Define properties
         self.tasmota_devices = {}           # to hold tasmota device information for web interface
         self.tasmota_zigbee_devices = {}    # to hold tasmota zigbee device information for web interface
         self.tasmota_items = []             # to hold item information for web interface
         self.tasmota_meta = {}              # to hold meta information for web interface
         self.tasmota_zigbee_bridge = {}     # to hold tasmota zigbee bridge status
         self.alive = None
+        self.discovered_devices = []
+        self.tasmota_zigbee_bridge_stetting = {'SetOption89': 'OFF',  # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
+                                               'SetOption83': 'ON',   # SetOption83   Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
+                                               'SetOption100': 'ON',  # SetOption100  Remove Zigbee ZbReceived value from {"ZbReceived":{xxx:yyy}} JSON message; 0 = disable (default), 1 = enable
+                                               'SetOption125': 'ON',  # SetOption125  ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
+                                               'SetOption118': 'ON',  # SetOption118  Move ZbReceived from JSON message into the subtopic replacing "SENSOR" default; 0 = disable (default); 1 = enable
+                                               'SetOption112': 'ON',  # SetOption112  0 = (default); 1 = use friendly name in Zigbee topic (use with ZbDeviceTopic)
+                                               'SetOption119': 'OFF'  # SetOption119  Remove device addr from JSON payload; 0 = disable (default); 1 = enable
+                                               }
 
-        self.tasmota_zigbee_bridge_stetting = {'SetOption89': 'OFF',
-                                               # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
-                                               'SetOption83': 'ON',
-                                               # SetOption83   Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
-                                               'SetOption100': 'ON',
-                                               # SetOption100  Remove Zigbee ZbReceived value from {"ZbReceived":{xxx:yyy}} JSON message; 0 = disable (default), 1 = enable
-                                               'SetOption125': 'ON',
-                                               # SetOption125	 ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
-                                               'SetOption118': 'ON',
-                                               # SetOption118  Move ZbReceived from JSON message into the subtopic replacing "SENSOR" default; 0 = disable (default); 1 = enable
-                                               'SetOption112': 'ON',
-                                               # SetOption112  0 = (default); 1 = use friendly name in Zigbee topic (use with ZbDeviceTopic)
-                                               'SetOption119': 'OFF'}  # SetOption119  Remove device addr from JSON payload; 0 = disable (default); 1 = enable
+        # Add subscription to get device discovery
+        self.add_tasmota_subscription('tasmota', 'discovery', '#', 'dict', callback=self.on_discovery)
 
-        # add subscription to get device announces
+        # Add subscription to get device announces
         self.add_tasmota_subscription('tele', '+', 'LWT', 'bool', bool_values=['Offline', 'Online'],
                                       callback=self.on_mqtt_announce)
         self.add_tasmota_subscription('tele', '+', 'STATE', 'dict', callback=self.on_mqtt_announce)
@@ -102,9 +102,8 @@ class Tasmota(MqttPlugin):
         self.add_tasmota_subscription('stat', '+', 'POWER2', 'num', callback=self.on_mqtt_message)
         self.add_tasmota_subscription('stat', '+', 'POWER3', 'num', callback=self.on_mqtt_message)
         self.add_tasmota_subscription('stat', '+', 'POWER4', 'num', callback=self.on_mqtt_message)
-        self.add_tasmota_subscription('tasmota', 'discovery', '#', 'num', callback=self.on_mqtt_message)
 
-        # init WebIF
+        # Init WebIF
         self.init_webinterface(WebInterface)
         return
 
@@ -114,12 +113,14 @@ class Tasmota(MqttPlugin):
         """
         self.logger.debug("Run method called")
 
-        # start subscription to all topics
+        # start subscription to all defined topics
         self.start_subscriptions()
 
-        # Discover Tasmota Device
-        key_list = list(
-            self.tasmota_devices.keys())  # use copy of keys to iterate to prevent changing dict during iteration
+        # wait 1 seconds to receive and handle retained messages for device discovery
+        time.sleep(1)
+
+        # Interview known Tasmota Devices (definied in item.yaml and self discovered)
+        key_list = list(set(list(self.tasmota_devices.keys()) + self.discovered_devices))
         for topic in key_list:
             # ask for status info of each known tasmota_topic, collected during parse_item
             self._identify_device(topic)
@@ -134,7 +135,6 @@ class Tasmota(MqttPlugin):
 
         self.scheduler_add('poll_device', self.poll_device, cycle=self._cycle)
         self.alive = True
-        return
 
     def stop(self):
         """
@@ -518,6 +518,34 @@ class Tasmota(MqttPlugin):
         tpc = tpc.replace("%topic%", topic)
         tpc += detail
         self.publish_topic(tpc, payload, item, qos, retain, bool_values)
+
+    def on_discovery(self, topic, payload):
+        """
+        Callback function to handle received discovery messages
+
+        :param topic:       MQTT topic
+        :type topic:        str
+        :param payload:     MQTT message payload
+        :type payload:      dict
+        """
+
+        # device_id=2C3AE82EB8AE, type=config, payload={"ip":"192.168.2.25","dn":"SONOFF_B1","fn":["SONOFF_B1",null,null,null,null,null,null,null],"hn":"SONOFF-B1-6318","mac":"2C3AE82EB8AE","md":"Sonoff Basic","ty":0,"if":0,"ofln":"Offline","onln":"Online","state":["OFF","ON","TOGGLE","HOLD"],"sw":"11.0.0","t":"SONOFF_B1","ft":"%prefix%/%topic%/","tp":["cmnd","stat","tele"],"rl":[1,0,0,0,0,0,0,0],"swc":[-1,-1,-1,-1,-1,-1,-1,-1],"swn":[null,null,null,null,null,null,null,null],"btn":[0,0,0,0,0,0,0,0],"so":{"4":0,"11":0,"13":0,"17":1,"20":0,"30":0,"68":0,"73":0,"82":0,"114":0,"117":0},"lk":0,"lt_st":0,"sho":[0,0,0,0],"ver":1}
+        # device_id=2C3AE82EB8AE, type=sensors, payload={"sn":{"Time":"2022-02-23T11:00:43","DS18B20":{"Id":"00000938355C","Temperature":18.1},"TempUnit":"C"},"ver":1}
+        # device_id=2CF432CC2FC5, type=config, payload={"ip":"192.168.2.33","dn":"NXSM200_01","fn":["NXSM200_01",null,null,null,null,null,null,null],"hn":"NXSM200-01-4037","mac":"2CF432CC2FC5","md":"NXSM200","ty":0,"if":0,"ofln":"Offline","onln":"Online","state":["OFF","ON","TOGGLE","HOLD"],"sw":"11.0.0","t":"NXSM200_01","ft":"%prefix%/%topic%/","tp":["cmnd","stat","tele"],"rl":[1,0,0,0,0,0,0,0],"swc":[-1,-1,-1,-1,-1,-1,-1,-1],"swn":[null,null,null,null,null,null,null,null],"btn":[0,0,0,0,0,0,0,0],"so":{"4":0,"11":0,"13":0,"17":0,"20":0,"30":0,"68":0,"73":0,"82":0,"114":0,"117":0},"lk":0,"lt_st":0,"sho":[0,0,0,0],"ver":1}
+        # device_id=2CF432CC2FC5, type=sensors, payload={"sn":{"Time":"2022-02-23T11:02:48","ENERGY":{"TotalStartTime":"2019-12-23T17:02:03","Total":72.814,"Yesterday":0.000,"Today":0.000,"Power": 0,"ApparentPower": 0,"ReactivePower": 0,"Factor":0.00,"Voltage": 0,"Current":0.000}},"ver":1}
+        # device_id=6001946F966E, type=config, payload={"ip":"192.168.2.31","dn":"SONOFF_RGBW1","fn":["SONOFF_RGBW",null,null,null,null,null,null,null],"hn":"SONOFF-RGBW1-5742","mac":"6001946F966E","md":"H801","ty":0,"if":0,"ofln":"Offline","onln":"Online","state":["OFF","ON","TOGGLE","HOLD"],"sw":"11.0.0","t":"SONOFF_RGBW1","ft":"%prefix%/%topic%/","tp":["cmnd","stat","tele"],"rl":[2,0,0,0,0,0,0,0],"swc":[-1,-1,-1,-1,-1,-1,-1,-1],"swn":[null,null,null,null,null,null,null,null],"btn":[0,0,0,0,0,0,0,0],"so":{"4":0,"11":0,"13":0,"17":0,"20":0,"30":0,"68":0,"73":0,"82":0,"114":0,"117":0},"lk":1,"lt_st":5,"sho":[0,0,0,0],"ver":1}
+        # device_id=6001946F966E, type=sensors, payload={"sn":{"Time":"2022-02-23T11:00:43"},"ver":1}
+
+        try:
+            (tasmota, discovery, device_id, type) = topic.split('/')
+            self.logger.info(f"on_discovery: device_id={device_id}, type={type}, payload={payload}")
+        except Exception as e:
+            self.logger.error(f"received topic {topic} is not in correct format. Error was: {e}")
+        else:
+            if type == 'config':
+                tasmota_topic = payload.get('dn', None)
+                if tasmota_topic:
+                    self.discovered_devices.append(tasmota_topic)
 
     def on_mqtt_announce(self, topic, payload, qos=None, retain=None):
         """

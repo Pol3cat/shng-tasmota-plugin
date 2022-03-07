@@ -1046,7 +1046,8 @@ class Tasmota(MqttPlugin):
         power_dict = {key: val for key, val in payload.items() if key.startswith('POWER')}
         self.tasmota_devices[device]['relais'].update(power_dict)
         for power in power_dict:
-            if not relay_index:
+            relay_index = str(power[5:])
+            if relay_index == '':
                 relay_index = '1'
             item_relay = 'item_relay' + relay_index
             self._set_item_value(device, item_relay, power_dict[power], function)

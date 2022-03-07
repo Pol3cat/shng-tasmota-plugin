@@ -187,8 +187,7 @@ class Tasmota(MqttPlugin):
 
             if not self.tasmota_devices.get(tasmota_topic):
                 self.tasmota_devices[tasmota_topic] = {}
-                self.tasmota_devices[tasmota_topic][
-                    'connected_to_item'] = False  # is tasmota_topic connected to any item?
+                self.tasmota_devices[tasmota_topic]['connected_to_item'] = False
                 self.tasmota_devices[tasmota_topic]['connected_items'] = {}
                 self.tasmota_devices[tasmota_topic]['uptime'] = '-'
                 self.tasmota_devices[tasmota_topic]['lights'] = {}
@@ -1047,7 +1046,9 @@ class Tasmota(MqttPlugin):
         power_dict = {key: val for key, val in payload.items() if key.startswith('POWER')}
         self.tasmota_devices[device]['relais'].update(power_dict)
         for power in power_dict:
-            item_relay = 'item_relay' + str(power[5:])
+            if not relay_index:
+                relay_index = '1'
+            item_relay = 'item_relay' + relay_index
             self._set_item_value(device, item_relay, power_dict[power], function)
 
     def _handle_module(self, device, payload):

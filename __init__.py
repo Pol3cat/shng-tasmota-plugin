@@ -85,8 +85,7 @@ class Tasmota(MqttPlugin):
         self.add_tasmota_subscription('tasmota', 'discovery', '#', 'dict', callback=self.on_discovery)
 
         # Add subscription to get device announces
-        self.add_tasmota_subscription('tele', '+', 'LWT', 'bool', bool_values=['Offline', 'Online'],
-                                      callback=self.on_mqtt_announce)
+        self.add_tasmota_subscription('tele', '+', 'LWT', 'bool', bool_values=['Offline', 'Online'], callback=self.on_mqtt_announce)
         self.add_tasmota_subscription('tele', '+', 'STATE', 'dict', callback=self.on_mqtt_announce)
         self.add_tasmota_subscription('tele', '+', 'SENSOR', 'dict', callback=self.on_mqtt_announce)
         self.add_tasmota_subscription('tele', '+', 'INFO1', 'dict', callback=self.on_mqtt_announce)

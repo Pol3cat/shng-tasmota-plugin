@@ -72,7 +72,7 @@ class Tasmota(MqttPlugin):
         self.tasmota_zigbee_bridge = {}     # to hold tasmota zigbee bridge status
         self.alive = None
         self.discovered_devices = []
-        self.tasmota_zigbee_bridge_stetting = {'SetOption89': 'OFF',  # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
+        self.tasmota_zigbee_bridge_setting = {'SetOption89': 'OFF',  # SetOption89   Configure MQTT topic for Zigbee devices (also see SensorRetain); 0 = single tele/%topic%/SENSOR topic (default), 1 = unique device topic based on Zigbee device ShortAddr, Example: tele/Zigbee/5ADF/SENSOR = {"ZbReceived":{"0x5ADF":{"Dimmer":254,"Endpoint":1,"LinkQuality":70}}}
                                                'SetOption83': 'ON',   # SetOption83   Uses Zigbee device friendly name instead of 16 bits short addresses as JSON key when reporting values and commands; 0 = JSON key as short address, 1 = JSON key as friendly name
                                                'SetOption100': 'ON',  # SetOption100  Remove Zigbee ZbReceived value from {"ZbReceived":{xxx:yyy}} JSON message; 0 = disable (default), 1 = enable
                                                'SetOption125': 'ON',  # SetOption125  ZbBridge only Hide bridge topic from zigbee topic (use with SetOption89) 1 = enable
@@ -1228,7 +1228,7 @@ class Tasmota(MqttPlugin):
             self.tasmota_zigbee_bridge['setting'] = {}
         self.tasmota_zigbee_bridge['setting'].update(payload)
 
-        if self.tasmota_zigbee_bridge['setting'] == self.tasmota_zigbee_bridge_stetting:
+        if self.tasmota_zigbee_bridge['setting'] == self.tasmota_zigbee_bridge_setting:
             self.tasmota_zigbee_bridge['status'] = 'set'
             self.logger.info(f'_handle_zbbridge_setting: Setting of Tasmota Zigbee Bridge successful.')
 
@@ -1279,10 +1279,10 @@ class Tasmota(MqttPlugin):
 
         # Configure ZigBeeBridge
         self.logger.debug(f"Configuration of Tasmota Zigbee Bridge to get MQTT Messages in right format")
-        for setting in self.tasmota_zigbee_bridge_stetting:
-            self.publish_tasmota_topic('cmnd', device, setting, self.tasmota_zigbee_bridge_stetting[setting])
+        for setting in self.tasmota_zigbee_bridge_setting:
+            self.publish_tasmota_topic('cmnd', device, setting, self.tasmota_zigbee_bridge_setting[setting])
             self.logger.debug(
-                f"_discover_zigbee_bridge: publishing to 'cmnd/{device}/setting' with payload {self.tasmota_zigbee_bridge_stetting[setting]}")
+                f"_discover_zigbee_bridge: publishing to 'cmnd/{device}/setting' with payload {self.tasmota_zigbee_bridge_setting[setting]}")
 
         # Request ZigBee Konfiguration
         self.logger.info("_discover_zigbee_bridge: Request configuration of Zigbee bridge")

@@ -1,7 +1,7 @@
-.. index:: tasmota plugin
+.. index:: tasmota
 .. index:: Plugins; tasmota
-.. index:: Plugins; mqtt
-.. index:: mqtt; tasmota plugin
+.. index:: mqtt; tasmota Plugin
+
 
 =======
 tasmota
@@ -14,6 +14,7 @@ Unterstützte Funktionen sind:
 * Relays eines Tasmota Devices (bis zu 4)
 * DS18B20 Temperatursensoren
 * AM2301 Sensoren für Temperatur und Luftfeuchte
+* SHT3X Sensoren für Temperatur und Luftfeuchte
 * RGBW Dimmer (H801) mit Senden und Empfangen von HSB
 * RF-Daten Senden und Empfangen mit Sonoff Bridge RF
 * Zigbee Daten Empfangen mit Sonoff Zigbee Bridge

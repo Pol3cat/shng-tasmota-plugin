@@ -39,13 +39,12 @@ class Tasmota(MqttPlugin):
     the update functions for the items
     """
 
-    PLUGIN_VERSION = '1.2.2'
+    PLUGIN_VERSION = '1.2.3'
 
     def __init__(self, sh):
         """
         Initalizes the plugin.
 
-        :param sh:  **Deprecated**: The instance of the smarthome object. For SmartHomeNG versions 1.4 and up: **Don't use it**!
         """
 
         # Call init code of parent class (MqttPlugin)
@@ -151,7 +150,7 @@ class Tasmota(MqttPlugin):
         """
         Default plugin parse_item method. Is called when the plugin is initialized.
         The plugin can, corresponding to its attribute keywords, decide what to do with
-        the item in future, like adding it to an internal array for future reference
+        the item in the future, like adding it to an internal array for future reference
         :param item:    The item to process.
         :type item:     Item
         :return:        If the plugin needs to be informed of an items change you should return a call back function
@@ -858,6 +857,7 @@ class Tasmota(MqttPlugin):
         # topic_type=tele, tasmota_topic=SONOFF_ZB1, info_topic=SENSOR, payload={'0x67FE': {'Device': '0x67FE', 'Humidity': 41.97, 'Endpoint': 1, 'LinkQuality': 55}}
         # topic_type=tele, tasmota_topic=SONOFF_ZB1, info_topic=SENSOR, payload={"0x54EB":{"Device":"0x54EB","MultiInValue":2,"Click":"double","click":"double","Endpoint":1,"LinkQuality":173}}
         # topic_type=tele, tasmota_topic=SONOFF_ZB1, info_topic=SENSOR, payload={"0x54EB":{"Device":"0x54EB","MultiInValue":255 ,"Click":"release","action":"release","Endpoint":1,"LinkQuality":175}}
+        # topic_type=tele, tasmota_topic=wohnen, info_topic=SENSOR, payload={'Time': '2022-11-06T12:28:07', 'ANALOG': {'A0': 2}, 'SHT3X': {'Temperature': 21.1, 'Humidity': 47.6, 'DewPoint': 9.6}, 'TempUnit': 'C'}
 
         # Handling of Zigbee Device Messages
         if self.tasmota_devices[device]['zigbee'] != {}:
@@ -939,36 +939,30 @@ class Tasmota(MqttPlugin):
                         self.tasmota_devices[device]['sensors']['ENERGY']['today'] = energy['Today']
                         self._set_item_value(device, 'item_power_today', energy['Today'], function)
 
-            # DS18B20 sensors
-            ds18b20 = payload.get('DS18B20')
-            if ds18b20:
-                self.logger.info(f"Received Message decoded as DS18B20 Sensor message.")
-                if not self.tasmota_devices[device]['sensors'].get('DS18B20'):
-                    self.tasmota_devices[device]['sensors']['DS18B20'] = {}
-                if type(ds18b20) is dict:
-                    if 'Id' in ds18b20:
-                        self.tasmota_devices[device]['sensors']['DS18B20']['id'] = ds18b20['Id']
-                        self._set_item_value(device, 'item_id', ds18b20['Id'], function)
-                    if 'Temperature' in ds18b20:
-                        self.tasmota_devices[device]['sensors']['DS18B20']['temp'] = ds18b20['Temperature']
-                        self._set_item_value(device, 'item_temp', ds18b20['Temperature'], function)
+            # Environmental Sensors
+            data = payload.get('DS18B20')
+            sensor = 'DS18B20'
+            if not data:
+                data = payload.get('AM2301')
+                sensor = 'AM2301'
+            if not data:
+                data = payload.get('SHT3X')
+                sensor = 'SHT3X'
 
-            # AM2301 sensors
-            am2301 = payload.get('AM2301')
-            if am2301:
-                self.logger.info(f"Received Message decoded as AM2301 Sensor message.")
-                if not self.tasmota_devices[device]['sensors'].get('AM2301'):
-                    self.tasmota_devices[device]['sensors']['AM2301'] = {}
-                if type(am2301) is dict:
-                    if 'Humidity' in am2301:
-                        self.tasmota_devices[device]['sensors']['AM2301']['hum'] = am2301['Humidity']
-                        self._set_item_value(device, 'item_hum', am2301['Humidity'], function)
-                    if 'Temperature' in am2301:
-                        self.tasmota_devices[device]['sensors']['AM2301']['temp'] = am2301['Temperature']
-                        self._set_item_value(device, 'item_temp', am2301['Temperature'], function)
-                    if 'DewPoint' in am2301:
-                        self.tasmota_devices[device]['sensors']['AM2301']['dewpoint'] = am2301['DewPoint']
-                        self._set_item_value(device, 'item_dewpoint', am2301['DewPoint'], function)
+            if data:
+                self.logger.info(f"Received Message decoded as {sensor} Sensor message.")
+                if not self.tasmota_devices[device]['sensors'].get(sensor):
+                    self.tasmota_devices[device]['sensors'][sensor] = {}
+                if type(data) is dict:
+                    if 'Humidity' in data:
+                        self.tasmota_devices[device]['sensors'][sensor]['hum'] = data['Humidity']
+                        self._set_item_value(device, 'item_hum', data['Humidity'], function)
+                    if 'Temperature' in data:
+                        self.tasmota_devices[device]['sensors'][sensor]['temp'] = data['Temperature']
+                        self._set_item_value(device, 'item_temp', data['Temperature'], function)
+                    if 'DewPoint' in data:
+                        self.tasmota_devices[device]['sensors'][sensor]['dewpoint'] = data['DewPoint']
+                        self._set_item_value(device, 'item_dewpoint', data['DewPoint'], function)
 
     def _handle_lights(self, device, function, payload):
         """
@@ -1080,7 +1074,7 @@ class Tasmota(MqttPlugin):
 
         :param device:          Device, the Zigbee Status information shall be handled
         :type device:           str
-        :param zbstatus1:       List of status information out out mqtt payload
+        :param zbstatus1:       List of status information out mqtt payload
         :type zbstatus1:        list
         :return:
         """

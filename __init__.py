@@ -900,43 +900,43 @@ class Tasmota(MqttPlugin):
         # Handling of Tasmota Device Sensor Messages
         else:
             # Energy sensors
-            energy = payload.get('ENERGY')
-            if energy:
+            energy = payload.get('ENERGY', None)
+
+            if energy and isinstance(energy, dict):
                 self.logger.info(f"Received Message decoded as Energy Sensor message.")
                 if not self.tasmota_devices[device]['sensors'].get('ENERGY'):
                     self.tasmota_devices[device]['sensors']['ENERGY'] = {}
-                if type(energy) is dict:
-                    self.tasmota_devices[device]['sensors']['ENERGY']['period'] = energy.get('Period', None)
-                    if 'Voltage' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['voltage'] = energy['Voltage']
-                        self._set_item_value(device, 'item_voltage', energy['Voltage'], function)
-                    if 'Current' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['current'] = energy['Current']
-                        self._set_item_value(device, 'item_current', energy['Current'], function)
-                    if 'Power' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['power'] = energy['Power']
-                        self._set_item_value(device, 'item_power', energy['Power'], function)
-                    if 'ApparentPower' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['apparent_power'] = energy['ApparentPower']
-                        self._set_item_value(device, 'item_apparent_power', energy['ApparentPower'], function)
-                    if 'ReactivePower' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['reactive_power'] = energy['ReactivePower']
-                        self._set_item_value(device, 'item_reactive_power', energy['ReactivePower'], function)
-                    if 'Factor' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['factor'] = energy['Factor']
-                        self._set_item_value(device, 'item_power_factor', energy['Factor'], function)
-                    if 'TotalStartTime' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['total_starttime'] = energy['TotalStartTime']
-                        self._set_item_value(device, 'item_total_starttime', energy['TotalStartTime'], function)
-                    if 'Total' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['total'] = energy['Total']
-                        self._set_item_value(device, 'item_power_total', energy['Total'], function)
-                    if 'Yesterday' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['yesterday'] = energy['Yesterday']
-                        self._set_item_value(device, 'item_power_yesterday', energy['Yesterday'], function)
-                    if 'Today' in energy:
-                        self.tasmota_devices[device]['sensors']['ENERGY']['today'] = energy['Today']
-                        self._set_item_value(device, 'item_power_today', energy['Today'], function)
+                self.tasmota_devices[device]['sensors']['ENERGY']['period'] = energy.get('Period', None)
+                if 'Voltage' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['voltage'] = energy['Voltage']
+                    self._set_item_value(device, 'item_voltage', energy['Voltage'], function)
+                if 'Current' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['current'] = energy['Current']
+                    self._set_item_value(device, 'item_current', energy['Current'], function)
+                if 'Power' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['power'] = energy['Power']
+                    self._set_item_value(device, 'item_power', energy['Power'], function)
+                if 'ApparentPower' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['apparent_power'] = energy['ApparentPower']
+                    self._set_item_value(device, 'item_apparent_power', energy['ApparentPower'], function)
+                if 'ReactivePower' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['reactive_power'] = energy['ReactivePower']
+                    self._set_item_value(device, 'item_reactive_power', energy['ReactivePower'], function)
+                if 'Factor' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['factor'] = energy['Factor']
+                    self._set_item_value(device, 'item_power_factor', energy['Factor'], function)
+                if 'TotalStartTime' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['total_starttime'] = energy['TotalStartTime']
+                    self._set_item_value(device, 'item_total_starttime', energy['TotalStartTime'], function)
+                if 'Total' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['total'] = energy['Total']
+                    self._set_item_value(device, 'item_power_total', energy['Total'], function)
+                if 'Yesterday' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['yesterday'] = energy['Yesterday']
+                    self._set_item_value(device, 'item_power_yesterday', energy['Yesterday'], function)
+                if 'Today' in energy:
+                    self.tasmota_devices[device]['sensors']['ENERGY']['today'] = energy['Today']
+                    self._set_item_value(device, 'item_power_today', energy['Today'], function)
 
             # Environmental Sensors
             for sensor in ['DS18B20', 'AM2301', 'SHT3X']:

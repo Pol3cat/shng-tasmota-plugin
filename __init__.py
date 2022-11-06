@@ -939,29 +939,23 @@ class Tasmota(MqttPlugin):
                         self._set_item_value(device, 'item_power_today', energy['Today'], function)
 
             # Environmental Sensors
-            data = payload.get('DS18B20')
-            sensor = 'DS18B20'
-            if not data:
-                data = payload.get('AM2301')
-                sensor = 'AM2301'
-            if not data:
-                data = payload.get('SHT3X')
-                sensor = 'SHT3X'
+            for sensor in ['DS18B20', 'AM2301', 'SHT3X']:
+                data = payload.get(sensor, None)
 
-            if data:
-                self.logger.info(f"Received Message decoded as {sensor} Sensor message.")
-                if not self.tasmota_devices[device]['sensors'].get(sensor):
-                    self.tasmota_devices[device]['sensors'][sensor] = {}
-                if type(data) is dict:
-                    if 'Humidity' in data:
-                        self.tasmota_devices[device]['sensors'][sensor]['hum'] = data['Humidity']
-                        self._set_item_value(device, 'item_hum', data['Humidity'], function)
-                    if 'Temperature' in data:
-                        self.tasmota_devices[device]['sensors'][sensor]['temp'] = data['Temperature']
-                        self._set_item_value(device, 'item_temp', data['Temperature'], function)
-                    if 'DewPoint' in data:
-                        self.tasmota_devices[device]['sensors'][sensor]['dewpoint'] = data['DewPoint']
-                        self._set_item_value(device, 'item_dewpoint', data['DewPoint'], function)
+                if data:
+                    self.logger.info(f"Received Message decoded as {sensor} Sensor message.")
+                    if not self.tasmota_devices[device]['sensors'].get(sensor):
+                        self.tasmota_devices[device]['sensors'][sensor] = {}
+                    if type(data) is dict:
+                        if 'Humidity' in data:
+                            self.tasmota_devices[device]['sensors'][sensor]['hum'] = data['Humidity']
+                            self._set_item_value(device, 'item_hum', data['Humidity'], function)
+                        if 'Temperature' in data:
+                            self.tasmota_devices[device]['sensors'][sensor]['temp'] = data['Temperature']
+                            self._set_item_value(device, 'item_temp', data['Temperature'], function)
+                        if 'DewPoint' in data:
+                            self.tasmota_devices[device]['sensors'][sensor]['dewpoint'] = data['DewPoint']
+                            self._set_item_value(device, 'item_dewpoint', data['DewPoint'], function)
 
     def _handle_lights(self, device, function, payload):
         """

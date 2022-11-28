@@ -544,8 +544,6 @@ class Tasmota(MqttPlugin):
                     # start device interview
                     self._interview_device(tasmota_topic)
 
-                    # ToDo: Config Checks FullTopic, SetOptions
-
                     if payload['ft'] != self.full_topic:
                         self.logger.warning(f"Device {device_name} discovered, but FullTopic of device does not match plugin setting!")
 

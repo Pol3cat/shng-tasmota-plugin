@@ -65,16 +65,27 @@ class WebInterface(SmartPluginWebIf):
 
         Render the template and return the html file to be delivered to the browser
 
-        :return: contents of the template after beeing rendered
+        :return: contents of the template after being rendered
         """
         self.plugin.get_broker_info()
 
         tmpl = self.tplenv.get_template('index.html')
         # add values to be passed to the Jinja2 template eg: tmpl.render(p=self.plugin, interface=interface, ...)
+
+        try:
+            pagelength = self.plugin.webif_pagelength
+        except Exception:
+            pagelength = 100
+
         return tmpl.render(p=self.plugin,
-                           webif_pagelength=self.plugin.webif_pagelength,
-                           items=sorted(self.plugin.tasmota_items, key=lambda k: str.lower(k['_path'])),
-                           item_count=len(self.plugin.tasmota_items))
+                           webif_pagelength=pagelength,
+                           items=self.plugin.tasmota_items,
+                           item_count=len(self.plugin.tasmota_items),
+                           plugin_shortname=self.plugin.get_shortname(),
+                           plugin_version=self.plugin.get_version(),
+                           plugin_info=self.plugin.get_info(),
+                           maintenance=True if self.plugin.log_level == 10 else False,
+                           )
 
     @cherrypy.expose
     def get_data_html(self, dataSet=None):
@@ -103,19 +114,17 @@ class WebInterface(SmartPluginWebIf):
             data['device_values'] = {}
             for device in self.plugin.tasmota_devices:
                 data['device_values'][device] = {}
-                data['device_values'][device]['online'] = self.plugin.tasmota_devices[device].get('online', None)
-                data['device_values'][device]['uptime'] = self.plugin.tasmota_devices[device].get('uptime', None)
-                data['device_values'][device]['fw_ver'] = self.plugin.tasmota_devices[device].get('fw_ver', None)
-                data['device_values'][device]['wifi_signal'] = self.plugin.tasmota_devices[device].get('wifi_signal', None)
-                data['device_values'][device]['sensors'] = self.plugin.tasmota_devices[device].get('sensors', None)
-                data['device_values'][device]['lights'] = self.plugin.tasmota_devices[device].get('lights', None)
-                data['device_values'][device]['rf'] = self.plugin.tasmota_devices[device].get('rf', None)
+                data['device_values'][device]['online'] = self.plugin.tasmota_devices[device].get('online', '-')
+                data['device_values'][device]['uptime'] = self.plugin.tasmota_devices[device].get('uptime', '-')
+                data['device_values'][device]['fw_ver'] = self.plugin.tasmota_devices[device].get('fw_ver', '-')
+                data['device_values'][device]['wifi_signal'] = self.plugin.tasmota_devices[device].get('wifi_signal', '-')
+                data['device_values'][device]['sensors'] = self.plugin.tasmota_devices[device].get('sensors', '-')
+                data['device_values'][device]['lights'] = self.plugin.tasmota_devices[device].get('lights', '-')
+                data['device_values'][device]['rf'] = self.plugin.tasmota_devices[device].get('rf', '-')
 
             data['tasmota_zigbee_devices'] = self.plugin.tasmota_zigbee_devices
 
-            data['tasmota_meta'] = self.plugin.tasmota_meta
-
-            # return it as json the the web page
+            # return it as json the web page
             try:
                 return json.dumps(data, default=str)
             except Exception as e:

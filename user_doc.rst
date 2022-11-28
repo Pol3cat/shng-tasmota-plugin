@@ -55,7 +55,7 @@ Für die Nutzung von Zigbee Devices über eine ZigbeeBridge mit Tasmota müssen 
         tasmota_zb_device: snzb02_01
         tasmota_zb_attr: Temperature
 
-Dabei ist zu beachten, dass bei Verwnendung des Kurznamen (bspw. 0x9CB) zur Identifikation des Zigbee-Gerätes
+Dabei ist zu beachten, dass bei Verwendung des Kurznamen (bspw. 0x9CB) zur Identifikation des Zigbee-Gerätes
 diese Kurzname in Hochkommata (also '0x9CB') zu setzen ist, um ein korrektes Verarbeiten sicherzustellen. Im Abschnitt
 Web Interface gibt es weitere Hinweise zur Konfiguration.
 

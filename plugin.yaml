@@ -139,8 +139,68 @@ item_attributes:
     tasmota_zb_attr: 
         type: str
         description:
-            de: "Schlüssel der Json-Dict, der vom Zigbee-Device bereitgestellt wird; Key aus dem sub-dict 'data' des tasmota_zb_device"
+            de: "Schlüssel der Json-Dict, der vom Zigbee-Device bereitgestellt wird; Key aus dem dict des tasmota_zb_device"
             en: "Dict Key of provided data; can be seen in Plugin WebIF"
+        valid_list:
+          - device
+          - power
+          - dimmer
+          - hue
+          - sat
+          - ct
+          - ct_k
+          - temperature
+          - humidity
+          - reachable
+          - batterypercentage
+          - batterylastseenepoch
+          - lastseen
+          - lastseenepoch
+          - linkquality
+          - ieeeaddr
+          - modelid
+          - manufacturer
+          - colormode
+          - zonestatus
+          - contact
+        #
+          - colortempstepup
+          - colortempstepdown
+          - 0300!4c
+          - 0008!02
+          - 0006!00
+          - 0006!01
+          - dimmerstepup
+          - dimmerstepdown
+          - power
+          - aqaravibrationmode
+          - aqaravibration505
+          - batteryvoltage
+          - shutterclose
+          - shutteropen
+        valid_list_description:
+          de:
+            - "Geräte_ID Kurzform                      -> str,  r/o"
+            - "Schalter                     true/false -> bool, r/w"
+            - "Helligkeit                        0-100 -> num,  r/w"
+            - "Farbwert                          0-360 -> num,  r/w"
+            - "Sättigung                         0-100 -> num,  r/w"
+            - "Farbtemperatur (mired scale),   150-500 -> num,  r/w"
+            - "Farbtemperatur (Kelvin),      2000-6700 -> num,  r/w"
+            - "Temperatur                              -> num,  r/o"
+            - "Feuchtigkeit                            -> num,  r/o"
+            - "Erreichbarkeit                          -> bool, r/o"
+            - "Batteriefüllung in %                    -> num,  r/o"
+            - "Letzte Batteriemeldung                  -> datetime, r/o"
+            - "Letzter Kontakt vor xx Sekunden         -> num,  r/o"
+            - "Letzter Kontakt                         -> datetime,  r/o"
+            - "Verbindungsqualität                     -> num,  r/o"
+            - "IEEE-Adresse                            -> str,  r/o"
+            - "Model-ID                                -> str,  r/o"
+            - "Hersteller                              -> str,  r/o"
+            - "Farbmodus                               -> num,  r/o"
+            - "Zonenstatus                             -> num,  r/o"
+            - "Kontakt                                 -> bool, r/o"
 
     tasmota_zb_cluster:
       type: bool

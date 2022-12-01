@@ -50,14 +50,14 @@ class Tasmota(MqttPlugin):
                                      'SetOption125': 'ON',
                                      }
     TASMOTA_ATTR_R_W = ['relay', 'hsb', 'white', 'ct', 'rf_send', 'rf_key_send', 'zb_permit_join', 'zb_forget', 'zb_ping', 'rf_key']
-    TASMOTA_ZB_ATTR_R_W = ['power', 'hue', 'sat', 'ct', 'dimmer']
+    TASMOTA_ZB_ATTR_R_W = ['power', 'hue', 'sat', 'ct', 'dimmer', 'ct_k']
     ENERGY_SENSOR_KEYS = {'Voltage': 'item_voltage', 'Current': 'item_current', 'Power': 'item_power',
                           'ApparentPower': 'item_apparent_power', 'ReactivePower': 'item_reactive_power',
                           'Factor': 'item_power_factor',
                           'TotalStartTime': 'item_total_starttime', 'Total': 'item_power_total',
                           'Yesterday': 'item_power_yesterday', 'Today': 'item_power_today'}
     ENV_SENSOR = ['DS18B20', 'AM2301', 'SHT3X', 'BMP280', 'DHT11']
-    ENV_SENSOR_KEYS = {'Temperature': 'item_temp', 'Humidity': 'item_hum', 'DewPoint': 'item_dewpoint', 'Pressure': 'item_pressure', 'Id': 'item_1wid' }
+    ENV_SENSOR_KEYS = {'Temperature': 'item_temp', 'Humidity': 'item_hum', 'DewPoint': 'item_dewpoint', 'Pressure': 'item_pressure', 'Id': 'item_1wid'}
 
     # ToDo: Check change of values to be executed
 
@@ -423,7 +423,7 @@ class Tasmota(MqttPlugin):
 
             # handle tasmota_zb_attr
             elif tasmota_zb_attr and tasmota_zb_attr in self.TASMOTA_ZB_ATTR_R_W:
-                self.logger.info(f"update_item: {item.id()}, item has been changed in SmartHomeNG outside of this plugin in {caller} with value {item()}")
+                self.logger.info(f"update_item: item={item.id()} with tasmota_zb_attr={tasmota_zb_attr} has been changed from {caller} with value={item()}")
 
                 if not tasmota_zb_device:
                     return
@@ -431,18 +431,19 @@ class Tasmota(MqttPlugin):
                 value = int(item())
                 detail = 'ZbSend'
                 link = {
-                      # 'attribute':  (send_cmd, bool_values,   min_value, max_value, cluster)
-                         'power':     ('Power',  ['OFF', 'ON'], None,      None,      '0x0006'),
-                         'dimmer':    ('Dimmer', None,          0,         254,       '0x0008'),
-                         'hue':       ('Hue',    None,          0,         254,       '0x0300'),
-                         'sat':       ('Sat',    None,          0,         254,       '0x0300'),
-                         'ct':        ('CT',     None,          0,         65534,     '0x0300'),
+                      # 'attribute': (send_cmd, bool_values,   min_value, max_value, cluster,  convert)
+                        'power':     ('Power',  ['OFF', 'ON'],      None,      None, '0x0006', None),
+                        'dimmer':    ('Dimmer', None,                  0,       100, '0x0008', _100_to_254),
+                        'hue':       ('Hue',    None,                  0,       360, '0x0300', _360_to_254),
+                        'sat':       ('Sat',    None,                  0,       100, '0x0300', _100_to_254),
+                        'ct':        ('CT',     None,                150,       500, '0x0300', None),
+                        'ct_k':      ('CT',     None,               2000,      6700, '0x0300', _kelvin_to_mired),
                         }
 
                 if tasmota_zb_attr not in link:
                     return
 
-                (cluster, send_cmd, bool_values, min_value, max_value) = link[tasmota_zb_attr]
+                (send_cmd, bool_values, min_value, max_value, cluster, convert) = link[tasmota_zb_attr]
 
                 # check and correct if value is in allowed range
                 if min_value and value < min_value:
@@ -451,6 +452,10 @@ class Tasmota(MqttPlugin):
                 elif max_value and value > max_value:
                     self.logger.info(f'Commanded value for {tasmota_zb_attr} above max value; set to allowed max value.')
                     value = max_value
+                    
+                # Konvertiere Wert
+                if convert:
+                    value = convert(value)
 
                 # build payload
                 payload = {'Device': tasmota_zb_device, 'Send': {send_cmd: value}}
@@ -481,12 +486,12 @@ class Tasmota(MqttPlugin):
         self._handle_retained_message(topic, retain)
 
         try:
-            (tasmota, discovery, device_id, type) = topic.split('/')
-            self.logger.info(f"on_mqtt_discovery_message: device_id={device_id}, type={type}, payload={payload}")
+            (tasmota, discovery, device_id, msg_type) = topic.split('/')
+            self.logger.info(f"on_mqtt_discovery_message: device_id={device_id}, type={msg_type}, payload={payload}")
         except Exception as e:
             self.logger.error(f"received topic {topic} is not in correct format. Error was: {e}")
         else:
-            if type == 'config':
+            if msg_type == 'config':
                 """
                 device_id = 2CF432CC2FC5
 
@@ -554,7 +559,7 @@ class Tasmota(MqttPlugin):
                         self._configure_zigbee_bridge_settings(tasmota_topic)
                         self._discover_zigbee_bridge_devices(tasmota_topic)
 
-            elif type == 'sensors':
+            elif msg_type == 'sensors':
                 """
                 device_id = 2CF432CC2FC5
 
@@ -789,7 +794,7 @@ class Tasmota(MqttPlugin):
                 self._handle_new_discovered_device(tasmota_topic)
 
             # handle message
-            if info_topic == 'STATE' or info_topic == 'RESULT':
+            if isinstance(payload, dict) and info_topic in ['STATE', 'RESULT']:
 
                 # Handling of TelePeriod
                 if 'TelePeriod' in payload:
@@ -846,9 +851,12 @@ class Tasmota(MqttPlugin):
                     self.logger.info(f"Received Message contains UptimeSec information.")
                     self._handle_uptime_sec(tasmota_topic, payload['UptimeSec'])
 
-            elif info_topic == 'SENSOR':
+            elif isinstance(payload, dict) and info_topic == 'SENSOR':
                 self.logger.info(f"Received Message contains sensor information.")
                 self._handle_sensor(tasmota_topic, info_topic, payload)
+
+            else:
+                self.logger.warning(f"Received Message '{payload}' not handled within plugin.")
 
             # setting new online-timeout
             self.tasmota_devices[tasmota_topic]['online_timeout'] = datetime.now() + timedelta(seconds=self.telemetry_period + 5)
@@ -931,16 +939,33 @@ class Tasmota(MqttPlugin):
         payload = {'Fenster_01': {'Device': '0xD4F3', 'Name': 'Fenster_01', 'Contact': 0, 'Endpoint': 1, 'LinkQuality': 92}}
         """
 
+        # self.logger.debug(f"_handle_sensor_zigbee: {device=}, {function=}, {payload=}")
+
         for zigbee_device in payload:
             if zigbee_device not in self.tasmota_zigbee_devices:
-                self.logger.info(f"New Zigbee Device '{zigbee_device}'based on 'Sensor'-Message from {device} discovered")
+                self.logger.info(f"New Zigbee Device '{zigbee_device}'based on {function}-Message from {device} discovered")
                 self.tasmota_zigbee_devices[zigbee_device] = {}
-
-            # Udpate des Sub-Dicts
-            self.tasmota_zigbee_devices[zigbee_device].update(payload[zigbee_device])
 
             # Make all keys of Zigbee-Device Payload Dict lowercase to match itemtype from parse_item
             zigbee_device_dict = {k.lower(): v for k, v in payload[zigbee_device].items()}
+
+            # Korrigieren der Werte für (HSB) Dimmer (0-254 -> 0-100), Hue(0-254 -> 0-360), Saturation (0-254 -> 0-100)
+            if 'dimmer' in zigbee_device_dict:
+                zigbee_device_dict.update({'dimmer': _254_to_100(zigbee_device_dict['dimmer'])})
+            if 'sat' in zigbee_device_dict:
+                zigbee_device_dict.update({'sat': _254_to_100(zigbee_device_dict['sat'])})
+            if 'hue' in zigbee_device_dict:
+                zigbee_device_dict.update({'hue': _254_to_360(zigbee_device_dict['hue'])})
+            if 'ct' in zigbee_device_dict:
+                zigbee_device_dict['ct_k'] = _mired_to_kelvin(zigbee_device_dict['ct'])
+            # Korrektur des LastSeenEpoch von Timestamp zu datetime
+            if 'lastseenepoch' in zigbee_device_dict:
+                zigbee_device_dict.update({'lastseenepoch': datetime.fromtimestamp(zigbee_device_dict['lastseenepoch'])})
+            if 'batterylastseenepoch' in zigbee_device_dict:
+                zigbee_device_dict.update({'batterylastseenepoch': datetime.fromtimestamp(zigbee_device_dict['batterylastseenepoch'])})
+
+            # Udpate des Sub-Dicts
+            self.tasmota_zigbee_devices[zigbee_device].update(zigbee_device_dict)
 
             # Iterate over payload and set corresponding items
             self.logger.debug(f"Item to be checked for update based in Zigbee Message and updated")
@@ -1188,28 +1213,10 @@ class Tasmota(MqttPlugin):
             if not zigbee_device:
                 zigbee_device = element['Device']
 
-            if zigbee_device not in self.tasmota_zigbee_devices:
-                self.logger.info(f"New Zigbee Device '{zigbee_device}'based on 'ZbStatus3'-Message from {device} discovered")
-                self.tasmota_zigbee_devices[zigbee_device] = {}
+            payload = dict()
+            payload[zigbee_device] = element
 
-            # Korrektur des LastSeenEpoch von Timestamp zu datetime
-            if 'LastSeenEpoch' in element:
-                element.update({'LastSeenEpoch': datetime.fromtimestamp(element['LastSeenEpoch'])})
-            if 'BatteryLastSeenEpoch' in element:
-                element.update({'BatteryLastSeenEpoch': datetime.fromtimestamp(element['BatteryLastSeenEpoch'])})
-
-            # Ablegen der Infos im dict
-            self.tasmota_zigbee_devices[zigbee_device].update(element)
-
-            # Make all keys of Zigbee-Device Payload Dict lowercase to match itemtype from parse_item
-            element = {k.lower(): v for k, v in element.items()}
-
-            # Iterate over data and set corresponding items
-            self.logger.debug(f"Item to be checked for update based in Zigbee Status Message")
-            for entry in element:
-                itemtype = f"item_{zigbee_device}.{entry.lower()}"
-                value = element[entry]
-                self._set_item_value(device, itemtype, value, 'ZbStatus')
+            self._handle_sensor_zigbee(device, 'ZbStatus', payload)
 
     def _handle_wifi(self, device: str, payload: dict) -> None:
         """
@@ -1422,11 +1429,11 @@ class Tasmota(MqttPlugin):
                         return
 
                 # set item value
-                self.logger.info(f"{tasmota_topic}: Item '{item.id()}' via itemtype '{itemtype} set to value {value} provided by {src} '.")
+                self.logger.info(f"{tasmota_topic}: Item '{item.id()}' via itemtype '{itemtype}' set to value '{value}' provided by '{src}'.")
                 item(value, self.get_shortname(), src)
 
             else:
-                self.logger.debug(f"{tasmota_topic}: No item for itemtype '{itemtype}' defined to set to {value} provided by {src}.")
+                self.logger.debug(f"{tasmota_topic}: No item for itemtype '{itemtype}' defined to set to '{value}' provided by '{src}'.")
         else:
             self.logger.debug(f"{tasmota_topic} unknown.")
 
@@ -1641,3 +1648,32 @@ class Tasmota(MqttPlugin):
             if 'SHT3X' in self.tasmota_devices[tasmota_topic]['sensors']:
                 return True
         return False
+
+
+##################################################################
+#    Utilities
+##################################################################
+
+def _254_to_100(value):
+    return int(round(value * 100 / 254, 0))
+
+
+def _254_to_360(value):
+    return int(round(value * 360 / 254, 0))
+
+
+def _100_to_254(value):
+    return int(round(value * 254 / 100, 0))
+
+
+def _360_to_254(value):
+    return int(round(value * 254 / 360, 0))
+
+
+def _kelvin_to_mired(value):
+    """Umrechnung der Farbtemperatur von Kelvin auf "mired scale" (Reziproke Megakelvin)"""
+    return int(round(1000000 / value, 0))
+
+def _mired_to_kelvin(value):
+    """Umrechnung der Farbtemperatur von "mired scale" (Reziproke Megakelvin) auf Kelvin"""
+    return int(round(10000 / int(value), 0)) * 100

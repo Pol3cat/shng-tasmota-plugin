@@ -59,8 +59,6 @@ class Tasmota(MqttPlugin):
     ENV_SENSOR = ['DS18B20', 'AM2301', 'SHT3X', 'BMP280', 'DHT11']
     ENV_SENSOR_KEYS = {'Temperature': 'item_temp', 'Humidity': 'item_hum', 'DewPoint': 'item_dewpoint', 'Pressure': 'item_pressure', 'Id': 'item_1wid'}
 
-    # ToDo: Check change of values to be executed
-
     def __init__(self, sh):
         """
         Initializes the plugin.
@@ -91,13 +89,13 @@ class Tasmota(MqttPlugin):
         self.alive = None
 
         # Add subscription to get device discovery
-        self.add_tasmota_subscription('tasmota', 'discovery', '#', 'dict',                                    callback=self.on_mqtt_discovery_message)
+        self.add_subscription(        'tasmota/discovery/#',  'dict',                                    callback=self.on_mqtt_discovery_message)
         # Add subscription to get device LWT
-        self.add_tasmota_subscription('tele', '+', 'LWT',          'bool', bool_values=['Offline', 'Online'], callback=self.on_mqtt_lwt_message)
+        self.add_tasmota_subscription('tele', '+', 'LWT',     'bool', bool_values=['Offline', 'Online'], callback=self.on_mqtt_lwt_message)
         # Add subscription to get device status
-        self.add_tasmota_subscription('stat', '+', 'STATUS0',      'dict',                                    callback=self.on_mqtt_status0_message)
+        self.add_tasmota_subscription('stat', '+', 'STATUS0', 'dict',                                    callback=self.on_mqtt_status0_message)
         # Add subscription to get device actions result
-        self.add_tasmota_subscription('stat', '+', 'RESULT',       'dict',                                    callback=self.on_mqtt_message)
+        self.add_tasmota_subscription('stat', '+', 'RESULT',  'dict',                                    callback=self.on_mqtt_message)
 
         # Init WebIF
         self.init_webinterface(WebInterface)
@@ -1276,7 +1274,7 @@ class Tasmota(MqttPlugin):
         self.add_tasmota_subscription('tele', '+', 'RESULT', 'dict', callback=self.on_mqtt_message)
       # self.add_tasmota_subscription('tele', '+', 'INFO1',  'dict', callback=self.on_mqtt_message)
       # self.add_tasmota_subscription('tele', '+', 'INFO2',  'dict', callback=self.on_mqtt_message)
-        self.add_tasmota_subscription('tele', '+', 'INFO3',  'dict', callback=self.on_mqtt_message)
+        self.add_tasmota_subscription('tele', '+', 'INFO3',  'dict', callback=self.on_mqtt_info_message)
         self.add_tasmota_subscription('stat', '+', 'POWER',  'num',  callback=self.on_mqtt_power_message)
         self.add_tasmota_subscription('stat', '+', 'POWER1', 'num',  callback=self.on_mqtt_power_message)
         self.add_tasmota_subscription('stat', '+', 'POWER2', 'num',  callback=self.on_mqtt_power_message)
@@ -1470,6 +1468,43 @@ class Tasmota(MqttPlugin):
         self.tasmota_devices[tasmota_topic]['relais'] = {}
         self.tasmota_devices[tasmota_topic]['zigbee'] = {}
 
+    def rename_discovery_keys(self, payload: dict) -> dict:
+
+        link = {'ip':    'IP',
+                'dn':    'DeviceName',
+                'fn':    'FriendlyNames',  # list
+                'hn':    'HostName',
+                'mac':   'MAC',
+                'md':    'Module',
+                'ty':    'Tuya',
+                'if':    'ifan',
+                'ofln':  'LWT-offline',
+                'onln':  'LWT-online',
+                'state': 'StateText',  # [0..3]
+                'sw':    'FirmwareVersion',
+                't':     'Topic',
+                'ft':    'FullTopic',
+                'tp':    'Prefix',
+                'rl':    'Relays',    # 0: disabled, 1: relay, 2.. future extension (fan, shutter?)
+                'swc':   'SwitchMode',
+                'swn':   'SwitchName',
+                'btn':   'Buttons',
+                'so':    'SetOption',  # needed by HA to map Tasmota devices to HA entities and triggers
+                'lk':    'ctrgb',
+                'lt_st': 'LightSubtype',
+                'sho':   'sho',
+                'sht':   'sht',
+                'ver':   'ProtocolVersion',
+                }
+
+        new_payload = {}
+        for k_old in payload:
+            k_new = link.get(k_old)
+            if k_new:
+                new_payload[k_new] = payload[k_old]
+
+        return new_payload
+
     ############################################################
     #   Zigbee
     ############################################################
@@ -1532,43 +1567,6 @@ class Tasmota(MqttPlugin):
         else:
             if topic in self.topics_of_retained_messages:
                 self.topics_of_retained_messages.remove(topic)
-
-    def rename_discovery_keys(self, payload: dict) -> dict:
-
-        link = {'ip':    'IP',
-                'dn':    'DeviceName',
-                'fn':    'FriendlyNames',  # list
-                'hn':    'HostName',
-                'mac':   'MAC',
-                'md':    'Module',
-                'ty':    'Tuya',
-                'if':    'ifan',
-                'ofln':  'LWT-offline',
-                'onln':  'LWT-online',
-                'state': 'StateText',  # [0..3]
-                'sw':    'FirmwareVersion',
-                't':     'Topic',
-                'ft':    'FullTopic',
-                'tp':    'Prefix',
-                'rl':    'Relays',  # 0: disabled, 1: relay, 2.. future extension (fan, shutter?)
-                'swc':   'SwitchMode',
-                'swn':   'SwitchName',
-                'btn':   'Buttons',
-                'so':    'SetOption',  # needed by HA to map Tasmota devices to HA entities and triggers
-                'lk':    'ctrgb',
-                'lt_st': 'LightSubtype',
-                'sho':   'sho',
-                'sht':   'sht',
-                'ver':   'ProtocolVersion',
-                }
-
-        new_payload = {}
-        for k_old in payload:
-            k_new = link.get(k_old)
-            if k_new:
-                new_payload[k_new] = payload[k_old]
-
-        return new_payload
 
     ############################################################
     #   Plugin Properties
@@ -1673,6 +1671,7 @@ def _360_to_254(value):
 def _kelvin_to_mired(value):
     """Umrechnung der Farbtemperatur von Kelvin auf "mired scale" (Reziproke Megakelvin)"""
     return int(round(1000000 / value, 0))
+
 
 def _mired_to_kelvin(value):
     """Umrechnung der Farbtemperatur von "mired scale" (Reziproke Megakelvin) auf Kelvin"""

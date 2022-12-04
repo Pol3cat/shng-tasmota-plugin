@@ -141,7 +141,7 @@ item_attributes:
         description:
             de: "Schlüssel der Json-Dict, der vom Zigbee-Device bereitgestellt wird; Key aus dem dict des tasmota_zb_device"
             en: "Dict Key of provided data; can be seen in Plugin WebIF"
-        valid_list:
+        valid_list_ci:
           - device
           - power
           - dimmer
@@ -166,18 +166,29 @@ item_attributes:
         #
           - colortempstepup
           - colortempstepdown
-          - 0300!4c
-          - 0008!02
-          - 0006!00
-          - 0006!01
           - dimmerstepup
           - dimmerstepdown
+          - dimmermove
           - power
           - aqaravibrationmode
           - aqaravibration505
           - batteryvoltage
           - shutterclose
           - shutteropen
+          - endpoint
+          - huemove
+          - 0300!0a
+          - 0300!01
+          - 0300!03
+          - 0300!4c
+          - 0006!00
+          - 0006!01
+          - 0008!01
+          - 0008!02
+          - 0008!03
+          - 0008!04
+          - 0008!05
+          -
         valid_list_description:
           de:
             - "Geräte_ID Kurzform                      -> str,  r/o"

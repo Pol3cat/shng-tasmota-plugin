@@ -1088,14 +1088,14 @@ class Tasmota(MqttPlugin):
 
     def _handle_module(self, device: str, payload: dict) -> None:
         """
-        Extracts Module information out of payload and updates plugin dict
+        Extracts Module information out of payload and updates plugin dict payload = {"0":"ZB-GW03-V1.3"}}
 
         :param device:          Device, the Module information shall be handled
         :param payload:         MQTT message payload
 
         """
         template = next(iter(payload))
-        module = module[template]
+        module = payload[template]
         self.tasmota_devices[device]['module'] = module
         self.tasmota_devices[device]['tasmota_template'] = template
 

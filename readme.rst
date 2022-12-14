@@ -40,7 +40,8 @@ Für die Nutzung eines Tasmota Devices müssen in dem entsprechenden Item die zw
             tasmota_attr: power
 
 Für die Nutzung von Zigbee Devices über eine ZigbeeBridge mit Tasmota müssen in dem entsprechenden Item die drei Attribute
-``tasmota_topic``, ``tasmota_zb_device`` und ``tasmota_zb_attr`` konfiguriert werden, wie im folgenden Beispiel gezeigt:
+``tasmota_topic``, ``tasmota_zb_device`` oder  ``tasmota_zb_group`` und ``tasmota_zb_attr`` konfiguriert werden, wie im 
+folgenden Beispiel gezeigt:
 
 .. code-block:: yaml
 
@@ -50,7 +51,7 @@ Für die Nutzung von Zigbee Devices über eine ZigbeeBridge mit Tasmota müssen 
         tasmota_zb_device: snzb02_01
         tasmota_zb_attr: Temperature
 
-Dabei ist zu beachten, dass bei Verwnendung des Kurznamen (bspw. 0x9CB) zur Identifikation des Zigbee-Gerätes
+Dabei ist zu beachten, dass bei Verwendung des Kurznamen (bspw. 0x9CB) zur Identifikation des Zigbee-Gerätes
 diese Kurzname in Hochkommata (also '0x9CB') zu setzen ist, um ein korrektes Verarbeiten sicherzustellen. Im Abschnitt
 Web Interface gibt es weitere Hinweise zur Konfiguration.
 
@@ -110,3 +111,4 @@ Das Webinterface zeigt Informationen zum genutzten MQTT Broker an.
 
 .. image:: user_doc/assets/webif_tab5.jpg
    :class: screenshot
+

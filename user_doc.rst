@@ -45,7 +45,8 @@ Für die Nutzung eines Tasmota Devices müssen in dem entsprechenden Item die zw
             tasmota_attr: power
 
 Für die Nutzung von Zigbee Devices über eine ZigbeeBridge mit Tasmota müssen in dem entsprechenden Item die drei Attribute
-``tasmota_topic``, ``tasmota_zb_device`` und ``tasmota_zb_attr`` konfiguriert werden, wie im folgenden Beispiel gezeigt:
+``tasmota_topic``, ``tasmota_zb_device`` oder  ``tasmota_zb_group`` und ``tasmota_zb_attr`` konfiguriert werden, wie im
+folgenden Beispiel gezeigt:
 
 .. code-block:: yaml
 

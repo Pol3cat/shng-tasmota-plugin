@@ -31,8 +31,7 @@ from .webif import WebInterface
 
 class Tasmota(MqttPlugin):
     """
-    Main class of the Plugin. Does all plugin specific stuff and provides
-    the update functions for the items
+    Main class of the Plugin. Does all plugin specific stuff and provides the update functions for the items
     """
 
     PLUGIN_VERSION = '1.3.0'
@@ -62,9 +61,7 @@ class Tasmota(MqttPlugin):
     def __init__(self, sh):
         """
         Initializes the plugin.
-
         """
-
         # Call init code of parent class (MqttPlugin)
         super().__init__()
         if not self._init_complete:
@@ -149,9 +146,11 @@ class Tasmota(MqttPlugin):
             self.logger.info(f"parsing item: {item.id()} with tasmota_topic={tasmota_topic}")
             tasmota_attr = self.get_iattr_value(item.conf, 'tasmota_attr')
             tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
+            tasmota_zb_group = self.get_iattr_value(item.conf, 'tasmota_zb_group')
             tasmota_zb_attr = self.get_iattr_value(item.conf, 'tasmota_zb_attr')
             tasmota_relay = self.get_iattr_value(item.conf, 'tasmota_relay')
             tasmota_rf_details = self.get_iattr_value(item.conf, 'tasmota_rf_key')
+            tasmota_zb_attr = tasmota_zb_attr.lower() if tasmota_zb_attr else None
 
             # handle tasmota devices without zigbee
             if tasmota_attr:
@@ -166,8 +165,6 @@ class Tasmota(MqttPlugin):
             elif tasmota_zb_device and tasmota_zb_attr:
                 self.logger.info(f"Item={item.id()} identified for Tasmota Zigbee with tasmota_zb_device={tasmota_zb_device} and tasmota_zb_attr={tasmota_zb_attr}")
 
-                tasmota_zb_attr = tasmota_zb_attr.lower()
-
                 # check if zigbee device short name has been used without parentheses; if so this will be normally parsed to a number and therefore mismatch with definition
                 try:
                     tasmota_zb_device = int(tasmota_zb_device)
@@ -176,6 +173,10 @@ class Tasmota(MqttPlugin):
                     tasmota_zb_device = tasmota_zb_device[0:2] + tasmota_zb_device[2:len(tasmota_zb_device)].upper()
                 except Exception:
                     pass
+
+            # handle tasmota zigbee groups
+            elif tasmota_zb_group and tasmota_zb_attr:
+                self.logger.info(f"Item={item.id()} identified for Tasmota Zigbee with tasmota_zb_group={tasmota_zb_group} and tasmota_zb_attr={tasmota_zb_attr}")
 
             # handle everything else
             else:
@@ -234,6 +235,7 @@ class Tasmota(MqttPlugin):
             tasmota_relay = '1' if not tasmota_relay else None
             tasmota_rf_details = self.get_iattr_value(item.conf, 'tasmota_rf_details')
             tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
+            tasmota_zb_group = self.get_iattr_value(item.conf, 'tasmota_zb_group')
             tasmota_zb_attr = self.get_iattr_value(item.conf, 'tasmota_zb_attr')
             tasmota_zb_cluster = self.get_iattr_value(item.conf, 'tasmota_zb_cluster')
             tasmota_zb_attr = tasmota_zb_attr.lower() if tasmota_zb_attr else None
@@ -250,7 +252,7 @@ class Tasmota(MqttPlugin):
 
                 value = item()
                 link = {
-                      # 'attribute':       (detail,         data_type, bool_values,   min_value, max_value)
+                       # 'attribute':      (detail,         data_type, bool_values,   min_value, max_value)
                          'relay':          (f'Power',       bool,      ['OFF', 'ON'], None,      None),
                          'hsb':            ('HsbColor',     list,      None,          None,      None),
                          'white':          ('White',        int,       None,          0,         120),
@@ -422,8 +424,9 @@ class Tasmota(MqttPlugin):
             # handle tasmota_zb_attr
             elif tasmota_zb_attr and tasmota_zb_attr in self.TASMOTA_ZB_ATTR_R_W:
                 self.logger.info(f"update_item: item={item.id()} with tasmota_zb_attr={tasmota_zb_attr} has been changed from {caller} with value={item()}")
+                self.logger.info(f"update_item: tasmota_zb_device={tasmota_zb_device}; tasmota_zb_group={tasmota_zb_group}")
 
-                if not tasmota_zb_device:
+                if tasmota_zb_device is None and tasmota_zb_group is None:
                     return
 
                 value = int(item())
@@ -456,10 +459,13 @@ class Tasmota(MqttPlugin):
                     value = convert(value)
 
                 # build payload
-                payload = {'Device': tasmota_zb_device, 'Send': {send_cmd: value}}
+                payload = {'Device': tasmota_zb_device} if tasmota_zb_device else {'group': tasmota_zb_group}
+                payload['Send'] = {send_cmd: value}
                 if tasmota_zb_cluster:
                     payload['Cluster'] = cluster
-                
+
+                self.logger.debug(f"payload={payload}")
+
                 # publish command
                 self.publish_tasmota_topic('cmnd', tasmota_topic, detail, payload, item, bool_values=bool_values)
 
@@ -1468,7 +1474,8 @@ class Tasmota(MqttPlugin):
         self.tasmota_devices[tasmota_topic]['relais'] = {}
         self.tasmota_devices[tasmota_topic]['zigbee'] = {}
 
-    def rename_discovery_keys(self, payload: dict) -> dict:
+    @staticmethod
+    def rename_discovery_keys(payload: dict) -> dict:
 
         link = {'ip':    'IP',
                 'dn':    'DeviceName',

@@ -51,7 +51,6 @@ parameters:
         en: 'Amount of items being listed in a web interface table per page by default'
 
 item_attributes:
-    # Definition of item attributes defined by this plugin (enter 'item_attributes: NONE', if section should be empty)
     tasmota_topic:
         type: str
         description:
@@ -135,6 +134,12 @@ item_attributes:
         description:
             de: "Friendly Name oder Kurzname des Zigbee Devices. ACHTUNG: Wird der Kurzname verwendet und beginnt dieser mit 0x, muss die Schreibweise '0x9CB9' verwendet werden"
             en: "Friendly Name oder Short Name of Zigbee Devices"
+
+    tasmota_zb_group:
+        type: num
+        description:
+          de: "Zigbee Control Group: Werte werden an diese Gruppe gesendet. Gruppennachrichten werden nicht empfangen. https://tasmota.github.io/docs/Device-Groups/#zigbee"
+          en: "Zigbee Control Group: Values will be sent to group. return messages will not be received"
 
     tasmota_zb_attr: 
         type: str

@@ -2,13 +2,11 @@
 # vim: set encoding=utf-8 tabstop=4 softtabstop=4 shiftwidth=4 expandtab
 #########################################################################
 #  Copyright 2020-      Martin Sinn                         m.sinn@gmx.de
+#  Copyright 2021-      Michael Wenzel              wenzel_michael@web.de
 #########################################################################
 #  This file is part of SmartHomeNG.
 #  https://www.smarthomeNG.de
 #  https://knx-user-forum.de/forum/supportforen/smarthome-py
-#
-#  Sample plugin for new plugins to run with SmartHomeNG version 1.5 and
-#  upwards.
 #
 #  SmartHomeNG is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -36,7 +34,6 @@ from lib.model.smartplugin import SmartPluginWebIf
 # ------------------------------------------
 
 import cherrypy
-# import csv
 from jinja2 import Environment, FileSystemLoader
 
 

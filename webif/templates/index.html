@@ -2,7 +2,7 @@
 {% set logo_frame = false %}
 
 <!-- set update_interval to a value > 0 (in milliseconds) to enable periodic data updates -->
-{% set update_interval = ((50 * item_count / 1000) | round | int) * 1000 %}
+{% set update_interval = [(((10 * item_count) / 1000) | round | int) * 1000, 5000]|max %}
 
 <!-- Additional styles go into this block. Examples are for datatables -->
 {% block pluginstyles %}
@@ -574,12 +574,12 @@
                 <tr>
                     <td></td>
                     <td class="py-1">{{ device }}</td>
-                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['IEEEAddr'] }}</td>
-                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['Manufacturer'] }}</td>
-                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['ModelId'] }}</td>
-                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['LinkQuality'] }}</td>
-                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['BatteryPercentage'] }}</td>
-                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['LastSeenEpoch'] }}</td>
+                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['ieeeaddr'] }}</td>
+                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['manufacturer'] }}</td>
+                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['modelid'] }}</td>
+                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['linkquality'] }}</td>
+                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['batterypercentage'] }}</td>
+                    <td class="py-1">{{ p.tasmota_zigbee_devices[device]['lastseenepoch'] }}</td>
                     <td class="py-1">{{ p.tasmota_zigbee_devices[device] }}</td>
                 </tr>
             {% endfor %}
@@ -663,6 +663,25 @@
 
 
 {% block bodytab6 %}
+<div class="container-fluid m-2">
+    <table id="" class="table table-striped table-hover pluginList">
+        <thead>
+            <tr class="shng_heading">
+                <th>{{ _('Tasmota Device') }}</th>
+                <th>{{ _('Tasmota Device Details') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in p.tasmota_objects_dict %}
+                <tr>
+                    <td>{{ device }}</td>
+                    <td>{{ p.tasmota_objects_dict[device] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 <div class="container-fluid m-2">
     <table id="" class="table table-striped table-hover pluginList">
         <thead>

@@ -76,6 +76,9 @@
         table = $('#rftable').DataTable( { 
             pageLength: webif_pagelength,
             pageResize: resize });
+        table = $('#smltable').DataTable( {
+            pageLength: webif_pagelength,
+            pageResize: resize });
         table = $('#zigbeetable').DataTable( { 
             pageLength: webif_pagelength,
             pageResize: resize} );
@@ -547,7 +550,33 @@
             {% endif %}
         </tbody>
     </table>
+
+    </br>
+    </br>
 {% endif %}
+
+{% if p.tasmota_sml_devices %}
+    <caption><h3><strong>SML</strong></h3></caption>
+    <table id="smltable">
+        <thead>
+            <tr>
+                <th class="plus"></th>
+                <th>{{ _('SML Device Topic') }}</th>
+                <th>{{ _('SML Device Details') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in p.tasmota_sml_devices %}
+                <tr>
+                    <td></td>
+                    <td>{{ device }}</td>
+                    <td>{{ p.tasmota_sml_devices[device] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
 </div>
 {% endblock %}
 
@@ -663,6 +692,7 @@
 
 
 {% block bodytab6 %}
+<!--
 <div class="container-fluid m-2">
     <table id="" class="table table-striped table-hover pluginList">
         <thead>
@@ -681,6 +711,7 @@
         </tbody>
     </table>
 </div>
+-->
 
 <div class="container-fluid m-2">
     <table id="" class="table table-striped table-hover pluginList">
@@ -697,6 +728,15 @@
                     <td>{{ p.tasmota_devices[device] }}</td>
                 </tr>
             {% endfor %}
+            <tr>
+                <td>{{ 'DEVICE_DICT_1' }}</td>
+                <td>{{ p.DEVICE_DICT_1 }}</td>
+            </tr>
+            <tr>
+                <td>{{ 'DEVICE_DICT_2' }}</td>
+                <td>{{ p.DEVICE_DICT_2 }}</td>
+            </tr>
+
         </tbody>
     </table>
 </div>

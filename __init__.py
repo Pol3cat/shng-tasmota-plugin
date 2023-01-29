@@ -181,8 +181,6 @@ class Tasmota(MqttPlugin):
             tasmota_sml_attr = self.get_iattr_value(item.conf, 'tasmota_sml_attr')
             tasmota_sml_attr = tasmota_sml_attr.lower() if tasmota_sml_attr else None
 
-            self.logger.debug(f"parsing item: {item.id()} with tasmota_topic={tasmota_topic}: {tasmota_attr=}, {tasmota_relay=}, {tasmota_zb_device=}, {tasmota_zb_attr=}, {tasmota_sml_device=}, {tasmota_sml_attr=}")
-
             # handle tasmota devices without zigbee
             if tasmota_attr:
                 self.logger.info(f"Item={item.id()} identified for Tasmota with tasmota_attr={tasmota_attr}")
@@ -223,25 +221,19 @@ class Tasmota(MqttPlugin):
                 self._add_new_device_to_tasmota_devices(tasmota_topic)
                 self.tasmota_devices[tasmota_topic]['status'] = 'item.conf'
 
-            self.logger.debug(f"parsing item: {item.id()} with tasmota_topic={tasmota_topic}: {tasmota_attr=}, {tasmota_relay=}, {tasmota_zb_device=}, {tasmota_zb_attr=}, {tasmota_sml_device=}, {tasmota_sml_attr=}")
-
             # fill tasmota_device dict
             self.tasmota_devices[tasmota_topic]['connected_to_item'] = True
             if tasmota_attr == 'relay' and tasmota_relay:
-                self.logger.debug(f"add {item.id()} to {tasmota_topic=} with {tasmota_attr=} and {tasmota_relay=} due to 'relais'")
-                self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_attr}{tasmota_relay}'] = item
+                item_type = f'item_{tasmota_attr}{tasmota_relay}'
             elif tasmota_attr == 'rf_key' and tasmota_rf_details:
-                self.logger.debug(f"add {item.id()} to {tasmota_topic=} with {tasmota_attr=} and {tasmota_rf_details=} due to 'rf_key'")
-                self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_attr}{tasmota_rf_details}'] = item
+                item_type = f'item_{tasmota_attr}{tasmota_rf_details}'
             elif tasmota_zb_device and tasmota_zb_attr:
-                self.logger.debug(f"add {item.id()} to {tasmota_topic=} with {tasmota_zb_device=} and {tasmota_zb_attr=} due to 'zigbee'")
-                self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_zb_device}.{tasmota_zb_attr}'] = item
+                item_type = f'item_{tasmota_zb_device}.{tasmota_zb_attr}'
             elif tasmota_sml_device and tasmota_sml_attr:
-                self.logger.debug(f"add {item.id()} to {tasmota_topic=} with {tasmota_sml_device=} and {tasmota_sml_attr=} due to 'sml'")
-                self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_sml_device}.{tasmota_sml_attr}'] = item
+                item_type = f'item_{tasmota_sml_device}.{tasmota_sml_attr}'
             else:
-                self.logger.debug(f"add {item.id()} to {tasmota_topic=} with {tasmota_attr=} due to 'else'")
-                self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_attr}'] = item
+                item_type = f'item_{tasmota_attr}'
+            self.tasmota_devices[tasmota_topic]['connected_items'][item_type] = item
 
             # append to list used for web interface
             if item not in self.tasmota_items:

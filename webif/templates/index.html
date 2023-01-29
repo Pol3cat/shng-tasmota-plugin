@@ -720,6 +720,25 @@
     </table>
 </div>
 
+<div class="container-fluid m-2">
+    <table id="" class="table table-striped table-hover pluginList">
+        <thead>
+            <tr class="shng_heading">
+                <th>{{ _('SML Device') }}</th>
+                <th>{{ _('SML Device Details') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for device in p.tasmota_sml_devices %}
+                <tr>
+                    <td>{{ device }}</td>
+                    <td>{{ p.tasmota_sml_devices[device] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 {% endblock %}
 
 

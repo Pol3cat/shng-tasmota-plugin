@@ -108,7 +108,7 @@ item_attributes:
               - "Temperatur in °C bei Tasmota Devices mit TEMP Sensor (DS18B20, AM2301) -> num, r/o"
               - "Luftfeuchtigkeit in %rH bei Tasmota Devices mit HUM Sensor (AM2301) -> num, r/o"
               - "Taupunkt in °C bei Tasmota Devices mit HUM und TEMP Sensor (AM2301) -> num, r/o"
-              - "Hue, Saturartion, Brightness (HSB) bei RGBW Tasmota Devices (H801) -> list, r/w"
+              - "Hue, Saturation, Brightness (HSB) bei RGBW Tasmota Devices (H801) -> list, r/w"
               - "Color Temperature in Kelvin bei RGBW Tasmota Devices (H801) -> num, r/w"
               - "Color Temperature in Kelvin bei RGBW Tasmota Devices (H801) -> num, r/w"
               - "Dimmwert in % Tasmota Devices -> num, r/w"
@@ -233,6 +233,18 @@ item_attributes:
       description:
         de: "Ergänzung des Sendebefehls um entsprechendes Zigbee-Cluster"
         en: "Use zigbee cluster in send command additionally"
+
+    tasmota_sml_device:
+      type: str
+      description:
+        de: "Name des Smartmeter (SML Device)"
+        en: "Name of smartmeter (SML Device)"
+
+    tasmota_sml_attr:
+      type: str
+      description:
+        de: "Smartmeter Attribut; muss dem Key des Dictionary dem SML Devices entsprechen"
+        en: "Smartmeter attribute; need to be key of SML device dictionary"
 
     tasmota_admin:
         type: str

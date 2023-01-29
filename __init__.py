@@ -129,6 +129,7 @@ class Tasmota(MqttPlugin):
         # Define properties
         self.tasmota_devices = {}                   # to hold tasmota device information for web interface
         self.tasmota_zigbee_devices = {}            # to hold tasmota zigbee device information for web interface
+        self.tasmota_sml_devices = {}               # to hold tasmota sml device information for web interface
         self.tasmota_items = []                     # to hold item information for web interface
         self.topics_of_retained_messages = []       # to hold all topics of retained messages
 
@@ -197,12 +198,15 @@ class Tasmota(MqttPlugin):
             tasmota_topic = self.get_iattr_value(item.conf, 'tasmota_topic')
             self.logger.info(f"parsing item: {item.id()} with tasmota_topic={tasmota_topic}")
             tasmota_attr = self.get_iattr_value(item.conf, 'tasmota_attr')
+            tasmota_relay = self.get_iattr_value(item.conf, 'tasmota_relay')
+            tasmota_rf_details = self.get_iattr_value(item.conf, 'tasmota_rf_key')
             tasmota_zb_device = self.get_iattr_value(item.conf, 'tasmota_zb_device')
             tasmota_zb_group = self.get_iattr_value(item.conf, 'tasmota_zb_group')
             tasmota_zb_attr = self.get_iattr_value(item.conf, 'tasmota_zb_attr')
-            tasmota_relay = self.get_iattr_value(item.conf, 'tasmota_relay')
-            tasmota_rf_details = self.get_iattr_value(item.conf, 'tasmota_rf_key')
             tasmota_zb_attr = tasmota_zb_attr.lower() if tasmota_zb_attr else None
+            tasmota_sml_device = self.get_iattr_value(item.conf, 'tasmota_sml_device')
+            tasmota_sml_attr = self.get_iattr_value(item.conf, 'tasmota_sml_attr')
+            tasmota_sml_attr = tasmota_sml_attr.lower() if tasmota_sml_attr else None
 
             # handle tasmota devices without zigbee
             if tasmota_attr:
@@ -230,6 +234,10 @@ class Tasmota(MqttPlugin):
             elif tasmota_zb_group and tasmota_zb_attr:
                 self.logger.info(f"Item={item.id()} identified for Tasmota Zigbee with tasmota_zb_group={tasmota_zb_group} and tasmota_zb_attr={tasmota_zb_attr}")
 
+            # handle tasmota smartmeter devices
+            elif tasmota_sml_device and tasmota_sml_attr:
+                self.logger.info(f"Item={item.id()} identified for Tasmota SML with tasmota_sml_device={tasmota_sml_device} and tasmota_sml_attr={tasmota_sml_attr}")
+
             # handle everything else
             else:
                 self.logger.info(f"Definition of attributes for item={item.id()} incomplete. Item will be ignored.")
@@ -248,6 +256,8 @@ class Tasmota(MqttPlugin):
                 self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_attr}{tasmota_rf_details}'] = item
             elif tasmota_zb_device and tasmota_zb_attr:
                 self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_zb_device}.{tasmota_zb_attr}'] = item
+            elif tasmota_sml_device and tasmota_sml_attr:
+                self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_sml_device}.{tasmota_sml_attr}'] = item
             else:
                 self.tasmota_devices[tasmota_topic]['connected_items'][f'item_{tasmota_attr}'] = item
 
@@ -903,6 +913,11 @@ class Tasmota(MqttPlugin):
             self.logger.info(f"Received Message decoded as ESP32 Sensor message.")
             self._handle_sensor_esp32(device, function, payload['ESP32'])
 
+        elif 'Time' in payload and len(payload) == 2 and isinstance(payload[list(payload.keys())[1]], dict):
+            self.logger.info(f"Received Message decoded as Smartmeter Sensor message.")
+            sml_device = list(payload.keys())[1]
+            self._handle_sensor_smartmeter(device, sml_device, function, payload[sml_device])
+
     def _handle_sensor_zigbee(self, device: str, function: str, payload: dict) -> None:
         """
         Handles Zigbee Sensor information and set items
@@ -973,8 +988,8 @@ class Tasmota(MqttPlugin):
         """
         Handle Environmental Sensor Information
         :param device:
-        :param payload:
         :param function:
+        :param payload:
         """
 
         for sensor in self.ENV_SENSOR:
@@ -994,8 +1009,8 @@ class Tasmota(MqttPlugin):
         """
         Handle Analog Sensor Information
         :param device:
-        :param payload:
         :param function:
+        :param analog:
         """
 
         if 'ANALOG' not in self.tasmota_devices[device]['sensors']:
@@ -1010,8 +1025,8 @@ class Tasmota(MqttPlugin):
         """
         Handle ESP32 Sensor Information
         :param device:
-        :param payload:
         :param function:
+        :param esp32:
         """
 
         if 'ESP32' not in self.tasmota_devices[device]['sensors']:
@@ -1021,6 +1036,34 @@ class Tasmota(MqttPlugin):
             if key in esp32:
                 self.tasmota_devices[device]['sensors']['ESP32'][key.lower()] = esp32[key]
                 self._set_item_value(device, self.ESP32_SENSOR_KEYS[key], esp32[key], function)
+
+    def _handle_sensor_smartmeter(self, device: str, sml_device: str, function: str, sml: dict):
+        """
+            Handle Smartmeter Sensor Information
+            :param device: Tasmota Device
+            :param sml_device: SML Device
+            :param function: Messages Information will be taken from
+            :param sml: dict with infos
+            """
+
+        self.logger.debug(f"_handle_sensor_smartmeter: {sml_device} mit details {sml=}")
+
+        if sml_device not in self.tasmota_sml_devices:
+            self.logger.info(f"New SML Device '{sml_device}'based on {function}-Message from {device} discovered")
+            self.tasmota_sml_devices[sml_device] = {}
+
+        # Make all keys of SML-Device Payload Dict lowercase to match itemtype from parse_item
+        sml_device_dict = {k.lower(): v for k, v in sml.items()}
+
+        # Udpate des Sub-Dicts
+        self.tasmota_sml_devices[sml_device].update(sml_device_dict)
+
+        # Iterate over payload and set corresponding items
+        self.logger.debug(f"Item to be checked for update based in SML Message and updated")
+        for element in sml_device_dict:
+            itemtype = f"item_{sml_device}.{element.lower()}"
+            value = sml_device_dict[element]
+            self._set_item_value(device, itemtype, value, function)
 
     def _handle_lights(self, device: str, function: str, payload: dict) -> None:
         """

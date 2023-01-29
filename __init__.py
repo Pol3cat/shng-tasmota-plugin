@@ -185,7 +185,7 @@ class Tasmota(MqttPlugin):
             if tasmota_attr:
                 self.logger.info(f"Item={item.id()} identified for Tasmota with tasmota_attr={tasmota_attr}")
                 tasmota_attr = tasmota_attr.lower()
-                tasmota_relay = 1 if not tasmota_relay else None
+                tasmota_relay = 1 if not tasmota_relay else tasmota_relay
 
                 if tasmota_rf_details and '=' in tasmota_rf_details:
                     tasmota_rf_details, tasmota_rf_key_param = tasmota_rf_details.split('=')

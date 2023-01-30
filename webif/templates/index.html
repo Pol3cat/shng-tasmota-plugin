@@ -136,6 +136,11 @@
                         shngInsertText (device+'AM2301_hum', objResponse['device_values'][device]['sensors']['AM2301']['hum']+ '%rH', 'environtable');
                         shngInsertText (device+'AM2301_dew', objResponse['device_values'][device]['sensors']['AM2301']['dewpoint']+ '°C', 'environtable');
 	                }
+	                if (objResponse['device_values'][device]['sensors']['SHT3X'] != null) {
+				        shngInsertText (device+'AM2301_temp', objResponse['device_values'][device]['sensors']['SHT3X']['temperature']+ '°C', 'environtable');
+                        shngInsertText (device+'AM2301_hum', objResponse['device_values'][device]['sensors']['SHT3X']['hum']+ '%rH', 'environtable');
+                        shngInsertText (device+'AM2301_dew', objResponse['device_values'][device]['sensors']['SHT3X']['dewpoint']+ '°C', 'environtable');
+	                }
                 }
                 if (objResponse['device_values'][device]['lights'] != null) {
                     if (objResponse['device_values'][device]['lights']['hsb'] != undefined) {
@@ -490,14 +495,13 @@
             </tr>
         </thead>
         <tbody>
-            {% set sensor_list = p.SENSORS %}
             {% for device in p.tasmota_devices %}
                 {% for sensor in p.tasmota_devices[device]['sensors'] %}
-                    {% if sensor not in sensor_list %}
+                    {% if sensor not in p.SENSORS %}
                         <tr>
                             <td></td>
-                            <td>{{ sensor }}</td>
-                            <td>{{ p.tasmota_devices[device]['sensors'][sensor] }}</td>
+                            <td class="py-1">{{ sensor }}</td>
+                            <td class="py-1" id="{{ device }}_{{ sensor }}">{{ p.tasmota_devices[device]['sensors'][sensor] }}</td>
                         </tr>
                     {% endif %}
                 {% endfor %}

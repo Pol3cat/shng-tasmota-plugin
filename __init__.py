@@ -80,8 +80,7 @@ class Tasmota(MqttPlugin):
 
     SENSORS = [*ENV_SENSOR,
                'ENERGY',
-               'ANALOG',
-               'ESP32']
+               ]
 
     def __init__(self, sh):
         """
@@ -1012,7 +1011,7 @@ class Tasmota(MqttPlugin):
         if 'ESP32' not in self.tasmota_devices[device]['sensors']:
             self.tasmota_devices[device]['sensors']['ESP32'] = {}
 
-        for key in self.ESP_SENSOR_KEYS:
+        for key in self.ESP32_SENSOR_KEYS:
             if key in esp32:
                 self.tasmota_devices[device]['sensors']['ESP32'][key.lower()] = esp32[key]
                 self._set_item_value(device, self.ESP32_SENSOR_KEYS[key], esp32[key], function)

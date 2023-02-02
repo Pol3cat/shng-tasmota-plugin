@@ -1498,7 +1498,7 @@ class Tasmota(MqttPlugin):
         self.logger.info(f"{tasmota_topic} is not online any more - online_timeout={self.tasmota_devices[tasmota_topic]['online_timeout']}, now={datetime.now()}")
 
         # clean data from dict to show correct status
-        self.tasmota_devices[tasmota_topic].udpate(self._get_device_dict_2_template())
+        self.tasmota_devices[tasmota_topic].update(self._get_device_dict_2_template())
 
         # NEW
         self.tasmota_objects_dict[tasmota_topic].udpate(self._get_device_dict_2_template())
